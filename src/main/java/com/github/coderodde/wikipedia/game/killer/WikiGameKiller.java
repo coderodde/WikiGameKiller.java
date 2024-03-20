@@ -26,6 +26,7 @@ public final class WikiGameKiller {
             sb.append(source).append(NL);
             sb.append(target).append(NL);
             sb.append(threads).append(NL);
+            sb.append(trials).append(NL);
             sb.append(masterSleepDuration).append(NL);
             sb.append(slaveSleepDuration).append(NL);
             sb.append(expansionTimeout).append(NL);
@@ -41,13 +42,13 @@ public final class WikiGameKiller {
         try {
             CommandLineSettings commandLineSettings = 
                     parseCommandLineSettings(args);
-
-            System.out.println(commandLineSettings);
-
+            
             if (commandLineSettings.printHelp) {
                 printHelp();
                 return;
             }
+
+            System.out.println(commandLineSettings);
             
         } catch (final CommandLineException ex) {
             System.out.printf("ERROR: %s\n", ex.getMessage());
@@ -58,16 +59,18 @@ public final class WikiGameKiller {
     private static void printHelp() {
         System.out.printf(
         """
-        usage: mvn exec:java --source SOURCE_ARTICLE_URL
-                             --target TARGET_ARTICLE_URL
-                            [--threads NUMBER_OF_THREADS]
-                            [--master-trials TRIALS]
-                            [--master-sleep-duration MASTER_SLEEP_MILLIS]
-                            [--slave-sleep-duration SLAVE_SLEEP_MILLIS]
-                            [--expansion-timeout EXPANSION_TIMEOUT_MILLIS]
-                            [--lock-wait-timeout LOCK_WAIT_MILLIS]
-                            [--help]
-                            [--stats] 
+        usage: %s
+            --source SOURCE_ARTICLE_URL
+            --target TARGET_ARTICLE_URL
+           [--threads NUMBER_OF_THREADS]
+           [--master-trials TRIALS]
+           [--master-sleep-duration MASTER_SLEEP_MILLIS]
+           [--slave-sleep-duration SLAVE_SLEEP_MILLIS]
+           [--expansion-timeout EXPANSION_TIMEOUT_MILLIS]
+           [--lock-wait-timeout LOCK_WAIT_MILLIS]
+           [--help]
+           [--stats]
+        
             where:
                 NUMBER_OF_THREADS        - the total number of threads.        Default is %d.
                 TRIALS                   - the number of master thread trials. Default is %d.
@@ -79,6 +82,7 @@ public final class WikiGameKiller {
                 --help  - Print this help message.
                 --stats - Print the search statistics after the search.
         """,
+        getPath(),
         ThreadPoolBidirectionalBFSPathFinder.DEFAULT_NUMBER_OF_THREADS,
         ThreadPoolBidirectionalBFSPathFinder.DEFAULT_NUMBER_OF_MASTER_TRIALS,
         ThreadPoolBidirectionalBFSPathFinder.DEFAULT_MASTER_THREAD_SLEEP_DURATION_MILLIS,
@@ -91,6 +95,17 @@ public final class WikiGameKiller {
     private static CommandLineSettings parseCommandLineSettings(String[] args) {
         Map<String, Integer> map = computeArgumentMap(args);
         
+        if (map.containsKey("--help")) {
+            if (map.size() > 1) {
+                throw new CommandLineException(
+                        "--help must be the only argument.");
+            }
+            
+            CommandLineSettings commandLineSettings = new CommandLineSettings();
+            commandLineSettings.printHelp = true;
+            return commandLineSettings;
+        }
+        
         if (!map.containsKey("--source")) {
             throw new CommandLineException("--source option is missing.");
         }
@@ -102,15 +117,10 @@ public final class WikiGameKiller {
         CommandLineSettings commandLineSettings = new CommandLineSettings();
         
         commandLineSettings.source = 
-                getArgumentStringValue(args, map.get("--source"));
+                getArgumentStringValue(args, map.get("--source") + 1);
         
         commandLineSettings.target = 
-                getArgumentStringValue(args, map.get("--target"));
-        
-        if (map.containsKey("--help")) {
-            commandLineSettings.printHelp = true;
-            return commandLineSettings;
-        }
+                getArgumentStringValue(args, map.get("--target") + 1);
         
         if (map.containsKey("--stats")) {
             commandLineSettings.printStatistics = true;
@@ -123,7 +133,7 @@ public final class WikiGameKiller {
         
         if (map.containsKey("--master-trials")) {
             int index = map.get("--master-trials");
-            commandLineSettings.threads = getArgumentIntValue(args, index + 1);
+            commandLineSettings.trials = getArgumentIntValue(args, index + 1);
         }
         
         if (map.containsKey("--master-sleep-duration")) {
@@ -138,7 +148,7 @@ public final class WikiGameKiller {
                     getArgumentIntValue(args, index + 1);
         }
         
-        if (map.containsKey("")) {
+        if (map.containsKey("--expansion-timeout")) {
             int index = map.get("--expansion-timeout");
             commandLineSettings.expansionTimeout = 
                     getArgumentIntValue(args, index + 1);
@@ -165,14 +175,14 @@ public final class WikiGameKiller {
     
     private static String getArgumentStringValue(String[] args, int index) {
         checkValueFitsInCommandLine(args, index);
-        return args[index + 1];
+        return args[index];
     }
     
     private static int getArgumentIntValue(String[] args, int index) {
         checkValueFitsInCommandLine(args, index);
         
         try {
-            return Integer.parseInt(args[index + 1]);
+            return Integer.parseInt(args[index]);
         } catch (final NumberFormatException ex) {
             throw new CommandLineException(
                     String.format(
@@ -182,7 +192,7 @@ public final class WikiGameKiller {
     }
     
     private static void checkValueFitsInCommandLine(String[] args, int index) {
-        if (index + 1 >= args.length) {
+        if (index >= args.length) {
             throw new CommandLineException(
                     String.format(
                             "The argument \"%s\" has no value.", 
@@ -195,5 +205,13 @@ public final class WikiGameKiller {
         CommandLineException(final String exceptionMessage) {
             super(exceptionMessage);
         }
+    }
+    
+    private static String getPath() {
+        return new java.io.File(WikiGameKiller.class.getProtectionDomain()
+          .getCodeSource()
+          .getLocation()
+          .getPath())
+          .getName();
     }
 }
