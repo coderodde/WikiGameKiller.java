@@ -1,10 +1,20 @@
 package com.github.coderodde.wikipedia.game.killer;
 
+import com.github.coderodde.graph.pathfinding.delayed.AbstractNodeExpander;
 import com.github.coderodde.graph.pathfinding.delayed.impl.ThreadPoolBidirectionalBFSPathFinder;
+import com.github.coderodde.wikipedia.graph.expansion.AbstractWikipediaGraphNodeExpander;
+import com.github.coderodde.wikipedia.graph.expansion.BackwardWikipediaGraphNodeExpander;
+import com.github.coderodde.wikipedia.graph.expansion.ForwardWikipediaGraphNodeExpander;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public final class WikiGameKiller {
+    
+    private static final String WIKIPEDIA_URL_FORMAT = 
+            "^(https://|http://)?..\\.wikipedia\\.org/wiki/.+$";
 
     private static final class CommandLineSettings {
         String source           = null;
@@ -53,6 +63,30 @@ public final class WikiGameKiller {
         } catch (final CommandLineException ex) {
             System.out.printf("ERROR: %s\n", ex.getMessage());
             System.exit(1);
+        }
+    }
+    
+    private static void validateTerminalNodes(
+            final AbstractNodeExpander<String> forwardExpander,
+            final AbstractNodeExpander<String> backwardExpander,
+            final String source, 
+            final String target) {
+      
+        checkWikipediaArticleFormat(source);
+        checkWikipediaArticleFormat(target);
+        
+        if (!forwardExpander.isValidNode(source)) {
+            throw new CommandLineException(
+                    String.format(
+                            "The source node \"%s\" is not a valid node.",
+                            source));
+        }
+        
+        if (!backwardExpander.isValidNode(target)) {
+            throw new CommandLineException(
+                    String.format(
+                            "The target node \"%s\" is not a valid node.",
+                            target));
         }
     }
     
@@ -200,7 +234,7 @@ public final class WikiGameKiller {
         }
     }
     
-    private static final class CommandLineException extends RuntimeException {
+    public static final class CommandLineException extends RuntimeException {
         
         CommandLineException(final String exceptionMessage) {
             super(exceptionMessage);
@@ -213,5 +247,58 @@ public final class WikiGameKiller {
           .getLocation()
           .getPath())
           .getName();
+    }
+    
+    static void checkWikipediaArticleFormat(String url) {
+        Pattern pattern = Pattern.compile(WIKIPEDIA_URL_FORMAT);
+        Matcher matcher = pattern.matcher(url);
+        
+        if (!matcher.hasMatch()) {
+            throw new CommandLineException(
+                    String.format(
+                            "URL \"%s\" is not a valid Wikipedia URL.",
+                            url));
+        }
+    }
+    
+    private static final class ForwardLinkExpander 
+            extends AbstractNodeExpander<String> {
+
+        private final ForwardWikipediaGraphNodeExpander expander;
+        
+        public ForwardLinkExpander(final String languageCode) {
+            this.expander = new ForwardWikipediaGraphNodeExpander(languageCode);
+        }
+        
+        @Override
+        public List<String> generateSuccessors(final String article) {
+            return expander.generateSuccessors(article);
+        }
+
+        @Override
+        public boolean isValidNode(final String article) {
+            return expander.isValidNode(article);
+        }
+    }
+    
+    private static final class BackwardLinkExpander 
+            extends AbstractNodeExpander<String> {
+
+        private final BackwardWikipediaGraphNodeExpander expander;
+        
+        public BackwardLinkExpander(final String languageCode) {
+            this.expander = 
+                    new BackwardWikipediaGraphNodeExpander(languageCode);
+        }
+        
+        @Override
+        public List<String> generateSuccessors(final String article) {
+            return expander.generateSuccessors(article);
+        }
+
+        @Override
+        public boolean isValidNode(final String article) {
+            return expander.isValidNode(article);
+        }
     }
 }
