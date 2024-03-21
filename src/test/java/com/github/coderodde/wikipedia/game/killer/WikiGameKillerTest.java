@@ -9,32 +9,23 @@ public final class WikiGameKillerTest {
     
     @Test
     public void checkWikipediaFormatValidNoProtocol() {
-        try {
-            WikiGameKiller.checkWikipediaArticleFormat(
-                    "en.wikipedia.org/wiki/hello");
-        } catch (Exception ex) {
-            fail();
-        }
+        // Should not throw:
+        WikiGameKiller.checkWikipediaArticleFormat(
+                "en.wikipedia.org/wiki/hello");
     }
     
     @Test
     public void checkWikipediaFormatValidHttpProtocol() {
-        try {
-            WikiGameKiller.checkWikipediaArticleFormat(
-                    "http://en.wikipedia.org/wiki/hello");
-        } catch (Exception ex) {
-            fail();
-        }
+        // Should not throw:
+        WikiGameKiller.checkWikipediaArticleFormat(
+                "http://en.wikipedia.org/wiki/hello");
     }
     
     @Test
     public void checkWikipediaFormatValidHttpsProtocol() {
-        try {
-            WikiGameKiller.checkWikipediaArticleFormat(
-                    "https://en.wikipedia.org/wiki/hello");
-        } catch (Exception ex) {
-            fail();
-        }
+        // Should not throw:
+        WikiGameKiller.checkWikipediaArticleFormat(
+                "https://en.wikipedia.org/wiki/hello");
     }
     
     @Test(expected = CommandLineException.class)
@@ -58,6 +49,6 @@ public final class WikiGameKillerTest {
     @Test(expected = CommandLineException.class)
     public void throwOnMissingArticleTitle() {
         WikiGameKiller.checkWikipediaArticleFormat(
-                "fi.wikipdia.org/wiki/");
+                "fi.wikipedia.org/wiki/");
     }
 }

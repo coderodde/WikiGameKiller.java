@@ -2,6 +2,8 @@ package com.github.coderodde.wikipedia.game.killer;
 
 import com.github.coderodde.graph.pathfinding.delayed.AbstractNodeExpander;
 import com.github.coderodde.graph.pathfinding.delayed.impl.ThreadPoolBidirectionalBFSPathFinder;
+import com.github.coderodde.graph.pathfinding.delayed.impl.ThreadPoolBidirectionalBFSPathFinderBuilder;
+import com.github.coderodde.graph.pathfinding.delayed.impl.ThreadPoolBidirectionalBFSPathFinderSearchBuilder;
 import com.github.coderodde.wikipedia.graph.expansion.BackwardWikipediaGraphNodeExpander;
 import com.github.coderodde.wikipedia.graph.expansion.ForwardWikipediaGraphNodeExpander;
 import java.util.Arrays;
@@ -14,8 +16,11 @@ import java.util.regex.Pattern;
 
 public final class WikiGameKiller {
     
-    private static final String WIKIPEDIA_URL_FORMAT = 
-            "^(https://|http://)?..\\.wikipedia\\.org/wiki/.+$";
+    private static final String WIKIPEDIA_URL_FORMAT =
+            "^((http:\\/\\/)|(https:\\/\\/))?..\\.wikipedia\\.org\\/wiki\\/.+$";
+    
+    private static final Pattern WIKIPEDIA_URL_FORMAT_PATTERN = 
+            Pattern.compile(WIKIPEDIA_URL_FORMAT);
 
     private static final class CommandLineSettings {
         String source           = null;
@@ -88,6 +93,35 @@ public final class WikiGameKiller {
                                   backwardLinkExpander, 
                                   source,
                                   target);
+            
+            ThreadPoolBidirectionalBFSPathFinder<String> finder = 
+                    ThreadPoolBidirectionalBFSPathFinderBuilder.<String>begin()
+                    .withJoinDurationMillis(commandLineSettings.expansionTimeout)
+                    .withLockWaitMillis(commandLineSettings.lockWaitDuration)
+                    .withMasterThreadSleepDurationMillis(commandLineSettings.masterSleepDuration)
+                    .withSlaveThreadSleepDurationMillis(commandLineSettings.slaveSleepDuration)
+                    .withNumberOfMasterTrials(commandLineSettings.trials)
+                    .withNumberOfRequestedThreads(commandLineSettings.threads)
+                    .end();
+            
+            List<String> path = 
+                    ThreadPoolBidirectionalBFSPathFinderSearchBuilder
+                            .<String>withPathFinder(finder)
+                            .withSourceNode(source)
+                            .withTargetNode(target)
+                            .withForwardNodeExpander(forwardLinkExpander)
+                            .withBackwardNodeExpander(backwardLinkExpander)
+                            .search();
+            
+            if (commandLineSettings.printStatistics) {
+                System.out.printf(
+                        "[STATISTICS] Duration: %d milliseconds, " + 
+                        "expanded nodes: %d nodes.",
+                        finder.getDurationMillis(),
+                        finder.getNumberOfExpandedNodes());
+            }
+            
+            path.forEach(System.out::println);
             
         } catch (final CommandLineException ex) {
             System.out.printf("ERROR: %s\n", ex.getMessage());
@@ -297,11 +331,10 @@ public final class WikiGameKiller {
           .getName();
     }
     
-    static void checkWikipediaArticleFormat(String url) {
-        Pattern pattern = Pattern.compile(WIKIPEDIA_URL_FORMAT);
-        Matcher matcher = pattern.matcher(url);
+    static void checkWikipediaArticleFormat(final String url) {
+        Matcher matcher = WIKIPEDIA_URL_FORMAT_PATTERN.matcher(url);
         
-        if (!matcher.hasMatch()) {
+        if (!matcher.find()) {
             throw new CommandLineException(
                     String.format(
                             "URL \"%s\" is not a valid Wikipedia URL.",
