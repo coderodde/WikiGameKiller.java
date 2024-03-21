@@ -124,12 +124,24 @@ public final class WikiGameKiller {
                         finder.getNumberOfExpandedNodes());
             }
             
-            path.forEach(System.out::println);
+            for (final String articleTitle : path) {
+                System.out.printf(
+                        "%s\n",
+                        wrapToUrl(articleTitle, 
+                                  languageCodeSource));
+            }
             
         } catch (final CommandLineException ex) {
             System.out.printf("ERROR: %s\n", ex.getMessage());
             System.exit(1);
         }
+    }
+    
+    private static String wrapToUrl(final String articleTitle, 
+                                    final String languageCode) {
+        return String.format("https://%s.wikipedia.org/wiki/%s", 
+                             languageCode, 
+                             articleTitle);
     }
     
     private static String getLanguageCode(String url) {
