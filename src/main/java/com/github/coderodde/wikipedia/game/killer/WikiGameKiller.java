@@ -23,7 +23,7 @@ public final class WikiGameKiller {
     private static final Pattern WIKIPEDIA_URL_FORMAT_PATTERN = 
             Pattern.compile(WIKIPEDIA_URL_FORMAT);
 
-    private static final class CommandLineSettings {
+    private static final class CommandLineArguments {
         String source           = null;
         String target           = null;
         int threads             = ThreadPoolBidirectionalBFSPathFinder.DEFAULT_NUMBER_OF_THREADS;
@@ -34,39 +34,20 @@ public final class WikiGameKiller {
         int lockWaitDuration    = ThreadPoolBidirectionalBFSPathFinder.DEFAULT_LOCK_WAIT_MILLIS;
         boolean printHelp       = false;
         boolean printStatistics = false;
-        
-        @Override
-        public String toString() {
-            StringBuilder sb = new StringBuilder();
-            final String NL = "\n";
-            
-            sb.append(source).append(NL);
-            sb.append(target).append(NL);
-            sb.append(threads).append(NL);
-            sb.append(trials).append(NL);
-            sb.append(masterSleepDuration).append(NL);
-            sb.append(slaveSleepDuration).append(NL);
-            sb.append(expansionTimeout).append(NL);
-            sb.append(lockWaitDuration).append(NL);
-            sb.append(printHelp).append(NL);
-            sb.append(printStatistics).append(NL);
-            
-            return sb.toString();
-        }
     }
     
     public static void main(String[] args) {
         try {
-            CommandLineSettings commandLineSettings = 
-                    parseCommandLineSettings(args);
+            CommandLineArguments commandLineArguments = 
+                    parseCommandLineArguments(args);
             
-            if (commandLineSettings.printHelp) {
+            if (commandLineArguments.printHelp) {
                 printHelp();
                 return;
             }
             
-            String source = commandLineSettings.source;
-            String target = commandLineSettings.target;
+            String source = commandLineArguments.source;
+            String target = commandLineArguments.target;
             
             checkWikipediaArticleFormat(source);
             checkWikipediaArticleFormat(target);
@@ -99,12 +80,12 @@ public final class WikiGameKiller {
             
             ThreadPoolBidirectionalBFSPathFinder<String> finder = 
                     ThreadPoolBidirectionalBFSPathFinderBuilder.<String>begin()
-                    .withJoinDurationMillis(commandLineSettings.expansionTimeout)
-                    .withLockWaitMillis(commandLineSettings.lockWaitDuration)
-                    .withMasterThreadSleepDurationMillis(commandLineSettings.masterSleepDuration)
-                    .withSlaveThreadSleepDurationMillis(commandLineSettings.slaveSleepDuration)
-                    .withNumberOfMasterTrials(commandLineSettings.trials)
-                    .withNumberOfRequestedThreads(commandLineSettings.threads)
+                    .withJoinDurationMillis(commandLineArguments.expansionTimeout)
+                    .withLockWaitMillis(commandLineArguments.lockWaitDuration)
+                    .withMasterThreadSleepDurationMillis(commandLineArguments.masterSleepDuration)
+                    .withSlaveThreadSleepDurationMillis(commandLineArguments.slaveSleepDuration)
+                    .withNumberOfMasterTrials(commandLineArguments.trials)
+                    .withNumberOfRequestedThreads(commandLineArguments.threads)
                     .end();
             
             List<String> path = 
@@ -116,7 +97,7 @@ public final class WikiGameKiller {
                             .withBackwardNodeExpander(backwardLinkExpander)
                             .search();
             
-            if (commandLineSettings.printStatistics) {
+            if (commandLineArguments.printStatistics) {
                 System.out.printf(
                         "[STATISTICS] Duration: %d milliseconds, " + 
                         "expanded nodes: %d nodes.\n",
@@ -223,7 +204,7 @@ public final class WikiGameKiller {
         );
     }
     
-    private static CommandLineSettings parseCommandLineSettings(String[] args) {
+    private static CommandLineArguments parseCommandLineArguments(String[] args) {
         Map<String, Integer> map = computeArgumentMap(args);
         
         if (map.containsKey("--help")) {
@@ -232,7 +213,7 @@ public final class WikiGameKiller {
                         "--help must be the only argument.");
             }
             
-            CommandLineSettings commandLineSettings = new CommandLineSettings();
+            CommandLineArguments commandLineSettings = new CommandLineArguments();
             commandLineSettings.printHelp = true;
             return commandLineSettings;
         }
@@ -245,7 +226,7 @@ public final class WikiGameKiller {
             throw new CommandLineException("--target option is missing.");
         }
         
-        CommandLineSettings commandLineSettings = new CommandLineSettings();
+        CommandLineArguments commandLineSettings = new CommandLineArguments();
         
         commandLineSettings.source = 
                 getArgumentStringValue(args, map.get("--source") + 1);
