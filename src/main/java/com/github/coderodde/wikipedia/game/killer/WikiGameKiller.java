@@ -2,11 +2,12 @@ package com.github.coderodde.wikipedia.game.killer;
 
 import com.github.coderodde.graph.pathfinding.delayed.AbstractNodeExpander;
 import com.github.coderodde.graph.pathfinding.delayed.impl.ThreadPoolBidirectionalBFSPathFinder;
-import com.github.coderodde.wikipedia.graph.expansion.AbstractWikipediaGraphNodeExpander;
 import com.github.coderodde.wikipedia.graph.expansion.BackwardWikipediaGraphNodeExpander;
 import com.github.coderodde.wikipedia.graph.expansion.ForwardWikipediaGraphNodeExpander;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -60,10 +61,60 @@ public final class WikiGameKiller {
 
             System.out.println(commandLineSettings);
             
+            String source = commandLineSettings.source;
+            String target = commandLineSettings.target;
+            
+            checkWikipediaArticleFormat(source);
+            checkWikipediaArticleFormat(target);
+            
+            String languageCodeSource = getLanguageCode(source);
+            String languageCodeTarget = getLanguageCode(target);
+            
+            if (!languageCodeSource.equals(languageCodeTarget)) {
+                throw new CommandLineException(
+                        String.format(
+                                "Language code mismatch: \"%s\" vs \"%s\".", 
+                                languageCodeSource, 
+                                languageCodeTarget));
+            }
+            
+            ForwardLinkExpander forwardLinkExpander = 
+                    new ForwardLinkExpander(languageCodeSource);
+            
+            BackwardLinkExpander backwardLinkExpander = 
+                    new BackwardLinkExpander(languageCodeTarget);
+            
+            validateTerminalNodes(forwardLinkExpander,
+                                  backwardLinkExpander, 
+                                  source,
+                                  target);
+            
         } catch (final CommandLineException ex) {
             System.out.printf("ERROR: %s\n", ex.getMessage());
             System.exit(1);
         }
+    }
+    
+    private static String getLanguageCode(String url) {
+        final String secureProtocol = "https://";
+        final String insecureProtocol = "http://";
+        
+        if (url.startsWith(secureProtocol)) {
+            url = url.substring(secureProtocol.length());
+        } else if (url.startsWith(insecureProtocol)) {
+            url = url.substring(insecureProtocol.length());
+        }
+        
+        final String languageCode = url.substring(0, 2);
+        
+        if (!Arrays.asList(Locale.getISOCountries()).contains(languageCode)) {
+            throw new CommandLineException(
+                    String.format(
+                            "Unknown language code: %s",
+                            languageCode));
+        }
+        
+        return languageCode;
     }
     
     private static void validateTerminalNodes(
@@ -71,9 +122,6 @@ public final class WikiGameKiller {
             final AbstractNodeExpander<String> backwardExpander,
             final String source, 
             final String target) {
-      
-        checkWikipediaArticleFormat(source);
-        checkWikipediaArticleFormat(target);
         
         if (!forwardExpander.isValidNode(source)) {
             throw new CommandLineException(
