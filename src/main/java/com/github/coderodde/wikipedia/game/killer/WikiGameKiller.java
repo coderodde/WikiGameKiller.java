@@ -64,8 +64,6 @@ public final class WikiGameKiller {
                 printHelp();
                 return;
             }
-
-            System.out.println(commandLineSettings);
             
             String source = commandLineSettings.source;
             String target = commandLineSettings.target;
@@ -121,7 +119,7 @@ public final class WikiGameKiller {
             if (commandLineSettings.printStatistics) {
                 System.out.printf(
                         "[STATISTICS] Duration: %d milliseconds, " + 
-                        "expanded nodes: %d nodes.",
+                        "expanded nodes: %d nodes.\n",
                         finder.getDurationMillis(),
                         finder.getNumberOfExpandedNodes());
             }
@@ -161,9 +159,6 @@ public final class WikiGameKiller {
             final AbstractNodeExpander<String> backwardExpander,
             String source, 
             String target) {
-        
-//        source = source.substring(source.lastIndexOf("/") + 1);
-//        target = target.substring(target.lastIndexOf("/") + 1);
         
         if (!forwardExpander.isValidNode(source)) {
             throw new CommandLineException(
