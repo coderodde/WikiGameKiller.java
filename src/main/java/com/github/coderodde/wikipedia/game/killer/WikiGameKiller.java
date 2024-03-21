@@ -6,6 +6,7 @@ import com.github.coderodde.graph.pathfinding.delayed.impl.ThreadPoolBidirection
 import com.github.coderodde.graph.pathfinding.delayed.impl.ThreadPoolBidirectionalBFSPathFinderSearchBuilder;
 import com.github.coderodde.wikipedia.graph.expansion.BackwardWikipediaGraphNodeExpander;
 import com.github.coderodde.wikipedia.graph.expansion.ForwardWikipediaGraphNodeExpander;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -83,6 +84,10 @@ public final class WikiGameKiller {
                                 languageCodeTarget));
             }
             
+            // Get the article names:
+            source = source.substring(source.lastIndexOf("/") + 1);
+            target = target.substring(target.lastIndexOf("/") + 1);
+            
             ForwardLinkExpander forwardLinkExpander = 
                     new ForwardLinkExpander(languageCodeSource);
             
@@ -141,7 +146,7 @@ public final class WikiGameKiller {
         
         final String languageCode = url.substring(0, 2);
         
-        if (!Arrays.asList(Locale.getISOCountries()).contains(languageCode)) {
+        if (!Arrays.asList(Locale.getISOLanguages()).contains(languageCode)) {
             throw new CommandLineException(
                     String.format(
                             "Unknown language code: %s",
@@ -154,8 +159,11 @@ public final class WikiGameKiller {
     private static void validateTerminalNodes(
             final AbstractNodeExpander<String> forwardExpander,
             final AbstractNodeExpander<String> backwardExpander,
-            final String source, 
-            final String target) {
+            String source, 
+            String target) {
+        
+//        source = source.substring(source.lastIndexOf("/") + 1);
+//        target = target.substring(target.lastIndexOf("/") + 1);
         
         if (!forwardExpander.isValidNode(source)) {
             throw new CommandLineException(
@@ -342,6 +350,16 @@ public final class WikiGameKiller {
         }
     }
     
+    private static List<String> stripHostAddress(final List<String> urlList) {
+        List<String> result = new ArrayList<>(urlList.size());
+        
+        for (final String url : urlList) {
+            result.add(url.substring(url.lastIndexOf("/") + 1));
+        }
+        
+        return result;
+    }
+    
     private static final class ForwardLinkExpander 
             extends AbstractNodeExpander<String> {
 
@@ -353,7 +371,8 @@ public final class WikiGameKiller {
         
         @Override
         public List<String> generateSuccessors(final String article) {
-            return expander.generateSuccessors(article);
+            List<String> urlList = expander.generateSuccessors(article);
+            return stripHostAddress(urlList);
         }
 
         @Override
@@ -374,7 +393,8 @@ public final class WikiGameKiller {
         
         @Override
         public List<String> generateSuccessors(final String article) {
-            return expander.generateSuccessors(article);
+            List<String> urlList = expander.generateSuccessors(article);
+            return stripHostAddress(urlList);
         }
 
         @Override
