@@ -10,14 +10,15 @@ import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.net.URLDecoder;
+import java.net.URLEncoder;
+import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -73,6 +74,9 @@ public final class WikiGameKiller {
             // Get the article names:
             source = source.substring(source.lastIndexOf("/") + 1);
             target = target.substring(target.lastIndexOf("/") + 1);
+            
+            source = URLDecoder.decode(source, Charset.forName("UTF-8"));
+            target = URLDecoder.decode(target, Charset.forName("UTF-8"));
             
             ForwardLinkExpander forwardLinkExpander = 
                     new ForwardLinkExpander(languageCodeSource);
@@ -145,7 +149,12 @@ public final class WikiGameKiller {
         
         if (!file.exists()) {
             try {
-                file.createNewFile();
+                if (!file.createNewFile()) {
+                    throw new CommandLineException(
+                            String.format(
+                                    "Could not create file \"%s\".", 
+                                    fileName));
+                }
             } catch (IOException ex) {
                 throw new CommandLineException(
                         String.format(
@@ -199,9 +208,12 @@ public final class WikiGameKiller {
     
     private static String wrapToUrl(final String articleTitle, 
                                     final String languageCode) {
+        
         return String.format("https://%s.wikipedia.org/wiki/%s", 
                              languageCode, 
-                             articleTitle);
+                             URLEncoder.encode(
+                                     articleTitle, 
+                                     Charset.forName("UTF-8")));
     }
     
     private static String getLanguageCode(String url) {
