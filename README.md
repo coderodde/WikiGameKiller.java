@@ -7,6 +7,10 @@ cd WikiGameKiller.java
 mvn clean compile assembly:single
 ```
 
+Note that this project relies on the next two Maven projects:
+- [ThreadPoolBidirectionalBFSPathFinder.java](https://github.com/coderodde/ThreadPoolBidirectionalBFSPathFinder.java)
+- [WikipediaGraphNodeExpanders.java](https://github.com/coderodde/WikipediaGraphNodeExpanders.java)
+
 ## Running the WikiGameKiller.java
 
 Starting from the same directory in which you installed the program, run these:
