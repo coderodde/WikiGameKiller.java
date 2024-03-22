@@ -25,4 +25,4 @@ Sometimes it may happen that a link `A -> B` is returned from the Wikipedia API,
 
 Also, the search may return an empty path even if one non-empty path exists. If something like that happens, it is advised to tweek the search parameters until successful.
 
-Finally, the program cannot switch between Wikipedia languaged.
+Finally, the program cannot switch between Wikipedia languages.
