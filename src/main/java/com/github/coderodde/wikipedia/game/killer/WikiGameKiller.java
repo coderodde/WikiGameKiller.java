@@ -6,12 +6,18 @@ import com.github.coderodde.graph.pathfinding.delayed.impl.ThreadPoolBidirection
 import com.github.coderodde.graph.pathfinding.delayed.impl.ThreadPoolBidirectionalBFSPathFinderSearchBuilder;
 import com.github.coderodde.wikipedia.graph.expansion.BackwardWikipediaGraphNodeExpander;
 import com.github.coderodde.wikipedia.graph.expansion.ForwardWikipediaGraphNodeExpander;
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -26,6 +32,7 @@ public final class WikiGameKiller {
     private static final class CommandLineArguments {
         String source           = null;
         String target           = null;
+        String outFileName      = null;
         int threads             = ThreadPoolBidirectionalBFSPathFinder.DEFAULT_NUMBER_OF_THREADS;
         int trials              = ThreadPoolBidirectionalBFSPathFinder.DEFAULT_NUMBER_OF_MASTER_TRIALS;
         int masterSleepDuration = ThreadPoolBidirectionalBFSPathFinder.DEFAULT_MASTER_THREAD_SLEEP_DURATION_MILLIS;
@@ -105,17 +112,89 @@ public final class WikiGameKiller {
                         finder.getNumberOfExpandedNodes());
             }
             
+            for (int i = 0; i < path.size(); i++) {
+                final String title = path.get(i);
+                final String url = wrapToUrl(title, languageCodeTarget);
+                path.set(i, url);
+            }
+            
             for (final String articleTitle : path) {
-                System.out.printf(
-                        "%s\n",
-                        wrapToUrl(articleTitle, 
-                                  languageCodeSource));
+                System.out.println(articleTitle);
+            }
+            
+            if (commandLineArguments.outFileName != null) {
+                saveFile(commandLineArguments.outFileName,
+                         path,
+                         commandLineArguments.printStatistics,
+                         finder.getDuration(),
+                         finder.getNumberOfExpandedNodes());
             }
             
         } catch (final CommandLineException ex) {
             System.out.printf("ERROR: %s\n", ex.getMessage());
             System.exit(1);
         }
+    }
+    
+    private static void saveFile(final String fileName,
+                                 final List<String> path,
+                                 final boolean showStats,
+                                 final long duration,
+                                 final int numberOfExpandedNodes) {
+        File file = new File(fileName);
+        
+        if (!file.exists()) {
+            try {
+                file.createNewFile();
+            } catch (IOException ex) {
+                throw new CommandLineException(
+                        String.format(
+                                "Could not create file \"%s\".", 
+                                fileName));
+            }
+        }
+        
+        String html;
+        
+        if (showStats) {
+            html = String.format(
+                    HTML_TEMPLATE,
+                    String.format(
+                            "Duration: %d milliseconds, expanded %d nodes.", 
+                            duration, 
+                            numberOfExpandedNodes),
+                    getPathListHtml(path));
+        } else {
+            html = String.format(HTML_TEMPLATE, "", getPathListHtml(path));
+        }
+        
+        try {
+            final BufferedWriter bufferedWriter = 
+                    new BufferedWriter(new FileWriter(fileName));
+            
+            bufferedWriter.write(html);
+            bufferedWriter.close();
+        } catch (IOException ex) {
+            throw new CommandLineException(
+                    "Could not create a buffered writer.");
+        }
+    }
+    
+    private static String getPathListHtml(final List<String> articleUrlPath) {
+        StringBuilder stringBuilder = new StringBuilder();
+        
+        stringBuilder.append("<ol>\n");
+
+        for (final String articleUrl : articleUrlPath) {
+            stringBuilder.append("                <li><a href=\"")
+                         .append(articleUrl)
+                         .append("\">")
+                         .append(articleUrl)
+                         .append("</a></li>\n");
+        }
+        
+        stringBuilder.append("            </ol>\n");
+        return stringBuilder.toString();
     }
     
     private static String wrapToUrl(final String articleTitle, 
@@ -168,6 +247,23 @@ public final class WikiGameKiller {
         }
     }
     
+    private static final String HTML_TEMPLATE = 
+            """
+            <!DOCTYPE html>
+            <html>
+                <head>
+                    <title>WikiGameKiller.java</title>
+                </head>
+                <body>
+                    <div>%s</div>
+                    <div>
+                        <h3>Shortest path:</h3>
+                        %s
+                    </div>
+                <body>
+            </html>
+            """;
+    
     private static void printHelp() {
         System.out.printf(
         """
@@ -182,6 +278,7 @@ public final class WikiGameKiller {
            [--lock-wait-timeout LOCK_WAIT_MILLIS]
            [--help]
            [--stats]
+           [--out OUTPUT_HTML_FILE_NAME]
         
             where:
                 NUMBER_OF_THREADS        - the total number of threads.        Default is %d.
@@ -226,53 +323,58 @@ public final class WikiGameKiller {
             throw new CommandLineException("--target option is missing.");
         }
         
-        CommandLineArguments commandLineSettings = new CommandLineArguments();
+        CommandLineArguments commandLineArguments = new CommandLineArguments();
         
-        commandLineSettings.source = 
+        commandLineArguments.source = 
                 getArgumentStringValue(args, map.get("--source") + 1);
         
-        commandLineSettings.target = 
+        commandLineArguments.target = 
                 getArgumentStringValue(args, map.get("--target") + 1);
         
+        if (map.containsKey("--out")) {
+            commandLineArguments.outFileName = 
+                getArgumentStringValue(args, map.get("--out") + 1);
+        }
+        
         if (map.containsKey("--stats")) {
-            commandLineSettings.printStatistics = true;
+            commandLineArguments.printStatistics = true;
         }
         
         if (map.containsKey("--threads")) {
             int index = map.get("--threads");
-            commandLineSettings.threads = getArgumentIntValue(args, index + 1);
+            commandLineArguments.threads = getArgumentIntValue(args, index + 1);
         }
         
         if (map.containsKey("--master-trials")) {
             int index = map.get("--master-trials");
-            commandLineSettings.trials = getArgumentIntValue(args, index + 1);
+            commandLineArguments.trials = getArgumentIntValue(args, index + 1);
         }
         
         if (map.containsKey("--master-sleep-duration")) {
             int index = map.get("--master-sleep-duration");
-            commandLineSettings.masterSleepDuration = 
+            commandLineArguments.masterSleepDuration = 
                     getArgumentIntValue(args, index + 1);
         }
         
         if (map.containsKey("--slave-sleep-duration")) {
             int index = map.get("--slave-sleep-duration");
-            commandLineSettings.slaveSleepDuration = 
+            commandLineArguments.slaveSleepDuration = 
                     getArgumentIntValue(args, index + 1);
         }
         
         if (map.containsKey("--expansion-timeout")) {
             int index = map.get("--expansion-timeout");
-            commandLineSettings.expansionTimeout = 
+            commandLineArguments.expansionTimeout = 
                     getArgumentIntValue(args, index + 1);
         }
         
         if (map.containsKey("--lock-wait-timeout")) {
             int index = map.get("--lock-wait-timeout");
-            commandLineSettings.lockWaitDuration = 
+            commandLineArguments.lockWaitDuration = 
                     getArgumentIntValue(args, index + 1);
         }
         
-        return commandLineSettings;
+        return commandLineArguments;
     }
     
     private static Map<String, Integer> computeArgumentMap(String[] args) {
