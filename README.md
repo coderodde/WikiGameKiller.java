@@ -21,4 +21,8 @@ java -jar WikiGameKiller.java-1.0.0.jar --help
 A nice help message will appear telling you how to use it! :-)
 
 ## Software limitations
-Sometimes it may happen that a link `A -> B` is returned from the Wikipedia API, yet the web page of `A` does not contain the link to `B`. Also, the search may return an empty path even if one non-empty path exists. If something like that happens, it is advised to tweek the search parameters until successful.
+Sometimes it may happen that a link `A -> B` is returned from the Wikipedia API, yet the web page of `A` does not contain the link to `B`. 
+
+Also, the search may return an empty path even if one non-empty path exists. If something like that happens, it is advised to tweek the search parameters until successful.
+
+Finally, the program cannot switch between Wikipedia languaged.
