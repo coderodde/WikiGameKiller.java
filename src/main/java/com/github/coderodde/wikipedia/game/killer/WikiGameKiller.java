@@ -10,6 +10,8 @@ import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.PrintStream;
+import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
 import java.net.URLEncoder;
 import java.nio.charset.Charset;
@@ -29,6 +31,18 @@ public final class WikiGameKiller {
     
     private static final Pattern WIKIPEDIA_URL_FORMAT_PATTERN = 
             Pattern.compile(WIKIPEDIA_URL_FORMAT);
+    
+    private static PrintStream OUT;
+    
+    static {
+        try {
+            OUT = new PrintStream(System.out, true, "UTF-8");
+        } catch (UnsupportedEncodingException ex) {
+            System.out.printf("ERROR: %.\n", ex.getMessage());
+            System.exit(2);
+        }
+    }
+            
 
     private static final class CommandLineArguments {
         String source           = null;
@@ -45,6 +59,7 @@ public final class WikiGameKiller {
     }
     
     public static void main(String[] args) {
+        
         try {
             CommandLineArguments commandLineArguments = 
                     parseCommandLineArguments(args);
@@ -109,39 +124,61 @@ public final class WikiGameKiller {
                             .search();
             
             if (commandLineArguments.printStatistics) {
-                System.out.printf(
+                OUT.printf(
                         "[STATISTICS] Duration: %d milliseconds, " + 
                         "expanded nodes: %d nodes.\n",
                         finder.getDurationMillis(),
                         finder.getNumberOfExpandedNodes());
             }
             
+            final List<LinkPathNode> linkPathNodeList = 
+                    new ArrayList<>(path.size());
+            
             for (int i = 0; i < path.size(); i++) {
-                final String title = path.get(i);
-                final String url = wrapToUrl(title, languageCodeTarget);
-                path.set(i, url);
+                String title = path.get(i);
+                title = URLDecoder.decode(title, Charset.forName("UTF-8"));
+                title = title.replace("_", " ");
+                
+                String url = wrapToUrl(title, languageCodeTarget);
+                linkPathNodeList.add(new LinkPathNode(url, title));
             }
             
-            for (final String articleTitle : path) {
-                System.out.println(articleTitle);
+            final int maximumUrlLength = getMaximumUrlLength(linkPathNodeList);
+            
+            for (final LinkPathNode linkPathNode : linkPathNodeList) {
+                OUT.println(
+                        linkPathNode.toCommandLineRow(maximumUrlLength));
             }
             
             if (commandLineArguments.outFileName != null) {
                 saveFile(commandLineArguments.outFileName,
-                         path,
+                         linkPathNodeList,
                          commandLineArguments.printStatistics,
                          finder.getDuration(),
                          finder.getNumberOfExpandedNodes());
             }
             
         } catch (final CommandLineException ex) {
-            System.out.printf("ERROR: %s\n", ex.getMessage());
+            OUT.printf("ERROR: %s\n", ex.getMessage());
             System.exit(1);
         }
     }
     
+    private static int getMaximumUrlLength(
+            final List<LinkPathNode> linkPathNodeList) {
+        
+        int maximumUrlLength = 1;
+        
+        for (final LinkPathNode linkPathNode : linkPathNodeList) {
+            maximumUrlLength = Math.max(maximumUrlLength,
+                                        linkPathNode.url.length());
+        }
+        
+        return maximumUrlLength;
+    }
+    
     private static void saveFile(final String fileName,
-                                 final List<String> path,
+                                 final List<LinkPathNode> linkPathNodeList,
                                  final boolean showStats,
                                  final long duration,
                                  final int numberOfExpandedNodes) {
@@ -161,7 +198,7 @@ public final class WikiGameKiller {
                                 "Could not create file \"%s\".", 
                                 fileName));
             }
-        }
+        } 
         
         String html;
         
@@ -172,14 +209,17 @@ public final class WikiGameKiller {
                             "Duration: %d milliseconds, expanded %d nodes.", 
                             duration, 
                             numberOfExpandedNodes),
-                    getPathListHtml(path));
+                    getPathListHtml(linkPathNodeList));
         } else {
-            html = String.format(HTML_TEMPLATE, "", getPathListHtml(path));
+            html = String.format(
+                    HTML_TEMPLATE, 
+                    "",
+                    getPathListHtml(linkPathNodeList));
         }
         
         try {
             final BufferedWriter bufferedWriter = 
-                    new BufferedWriter(new FileWriter(fileName));
+                    new BufferedWriter(new FileWriter(file));
             
             bufferedWriter.write(html);
             bufferedWriter.close();
@@ -189,20 +229,20 @@ public final class WikiGameKiller {
         }
     }
     
-    private static String getPathListHtml(final List<String> articleUrlPath) {
+    private static String getPathListHtml(
+            final List<LinkPathNode> linkPathNodeList) {
+        
         StringBuilder stringBuilder = new StringBuilder();
         
-        stringBuilder.append("<ol>\n");
+        int lineNumber = 1;
 
-        for (final String articleUrl : articleUrlPath) {
-            stringBuilder.append("                <li><a href=\"")
-                         .append(articleUrl)
-                         .append("\">")
-                         .append(articleUrl)
-                         .append("</a></li>\n");
+        stringBuilder.append("            <table>\n");
+        
+        for (final LinkPathNode linkPathNode : linkPathNodeList) {
+            stringBuilder.append(linkPathNode.toTableRowHtml(lineNumber++));
         }
         
-        stringBuilder.append("            </ol>\n");
+        stringBuilder.append("            </table>");
         return stringBuilder.toString();
     }
     
@@ -213,7 +253,8 @@ public final class WikiGameKiller {
                              languageCode, 
                              URLEncoder.encode(
                                      articleTitle, 
-                                     Charset.forName("UTF-8")));
+                                     Charset.forName("UTF-8")))
+                .replace("+", "_");
     }
     
     private static String getLanguageCode(String url) {
@@ -270,14 +311,16 @@ public final class WikiGameKiller {
                     <div>%s</div>
                     <div>
                         <h3>Shortest path:</h3>
-                        %s
+                        <table>
+                            %s
+                        </table>
                     </div>
                 <body>
             </html>
             """;
     
     private static void printHelp() {
-        System.out.printf(
+        OUT.printf(
         """
         usage: %s
             --source SOURCE_ARTICLE_URL
@@ -502,6 +545,37 @@ public final class WikiGameKiller {
         @Override
         public boolean isValidNode(final String article) {
             return expander.isValidNode(article);
+        }
+    }
+    
+    private static final class LinkPathNode {
+        private final String url;
+        private final String title;
+        
+        LinkPathNode(final String url, final String title) {
+            this.url = url;
+            this.title = title;
+        }
+        
+        String toTableRowHtml(final int lineNumber) {
+            return new StringBuilder().append("                ") // Align.
+                                      .append("<tr><td>")
+                                      .append(lineNumber)
+                                      .append(".</td><td><a href=\"")
+                                      .append(url)
+                                      .append("\">")
+                                      .append(url)
+                                      .append("</a></td><td>")
+                                      .append(title)
+                                      .append("</td></tr>\n")   
+                                      .toString();
+        }
+        
+        String toCommandLineRow(int urlLength) {
+            return String.format(
+                    "%-" + urlLength + "s  [%s]", 
+                    url.replace("+", "_"),
+                    title);
         }
     }
 }
