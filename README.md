@@ -38,7 +38,7 @@ The above will also generate a convenient HTML file listing the path:
 Sometimes it may happen that the link is in a section that must be made visible by pressing the `Show` link. For example:
 ![wiki](https://github.com/coderodde/WikiGameKiller.java/assets/1770505/ccf97b1f-498d-46ed-aea6-6d7273b652ec)
 
-Note above that we need to press the `Show` link in order to expose the link to [Australian Grand Prix](https://en.wikipedia.org/wiki/Australian_Grand_Prix	).
+Note above that we need to press the `Show` link in [Australian Open](https://en.wikipedia.org/wiki/Australian_Open) in order to expose the link to [Australian Grand Prix](https://en.wikipedia.org/wiki/Australian_Grand_Prix	).
 
 Also, the search may return an empty path even if one non-empty path exists. If something like that happens, it is advised to tweek the search parameters and retry until successful.
 
