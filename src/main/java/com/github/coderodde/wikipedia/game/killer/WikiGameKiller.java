@@ -163,7 +163,146 @@ public final class WikiGameKiller {
             System.exit(1);
         }
     }
+
+    /**
+     * Checks that the argument array has space for the argument at index 
+     * {@code index}. If not, an instance of {@link CommandLineException} is
+     * thrown.
+     * 
+     * @param args  the argument array.
+     * @param index the index of an argument.
+     * 
+     * @throws CommandLineException if {@code index} does not fit in the input
+     *                              argument array.
+     */
+    private static void checkValueFitsInCommandLine(String[] args, int index) {
+        if (index >= args.length) {
+            throw new CommandLineException(
+                    String.format(
+                            "The argument \"%s\" has no value.", 
+                            args[index]));
+        }
+    }
+
+    /**
+     * Checks that the input URL {@code url} is a valid Wikipedia URL.
+     * 
+     * @param url the URL to check.
+     * 
+     * @throws an instance of {@link CommandLineException} if the input URL is 
+     *         not a valid Wikipedia URL.
+     */
+    static void checkWikipediaArticleFormat(final String url) {
+        Matcher matcher = WIKIPEDIA_URL_FORMAT_PATTERN.matcher(url);
+        
+        if (!matcher.find()) {
+            throw new CommandLineException(
+                    String.format(
+                            "URL \"%s\" is not a valid Wikipedia URL.",
+                            url));
+        }
+    }
+
+    /**
+     * Computes a map mapping each command line argument to its appearance 
+     * index.
+     * 
+     * @param args the argument array.
+     * 
+     * @return a map mapping each command line argument to its appearnce index.
+     */
+    private static Map<String, Integer> computeArgumentMap(String[] args) {
+        Map<String, Integer> map = new HashMap<>(args.length);
+        
+        for (int i = 0; i < args.length; i++) {
+            map.put(args[i], i);
+        }
+        
+        return map;
+    }
     
+    /**
+     * Attemtps to read an integer value of the {@code index}th argument.
+     * 
+     * @param args  the argument array.
+     * @param index the argument array index.
+     * 
+     * @return the integer value of the {@code index}th argument.
+     * 
+     * @throws an instance of {@link CommandLineException} if either the index
+     *         is outside of the argument array, or the {@code index}th argument
+     *         is not an integer.
+     */
+    private static int getArgumentIntValue(final String[] args,
+                                           final int index) {
+        
+        checkValueFitsInCommandLine(args, index);
+        
+        try {
+            return Integer.parseInt(args[index]);
+        } catch (final NumberFormatException ex) {
+            throw new CommandLineException(
+                    String.format(
+                            "\"%s\" is not an integer.",
+                            args[index + 1]));
+        }
+    }
+    
+    /**
+     * Attempts to read a string value of the {@code index}th argument.
+     * 
+     * @param args  the argument array.
+     * @param index the argument array index.
+     * 
+     * @return the string value of the {@code index}th argument.
+     * 
+     * @throws an instance of {@link CommandLineException} if the index is 
+     *         outside of the argument array.
+     */
+    private static String getArgumentStringValue(String[] args, int index) {
+        checkValueFitsInCommandLine(args, index);
+        return args[index];
+    }
+    
+    /**
+     * Returns the ISO language code used in the input URL {@code url}.
+     * 
+     * @param url the URL to extract the country code from.
+     * 
+     * @return the language code.
+     * 
+     * @throws an instance of {@link CommandLineException} if the resulting 
+     *         language code does not conform to ISO.
+     */
+    private static String getLanguageCode(String url) {
+        final String secureProtocol = "https://";
+        final String insecureProtocol = "http://";
+        
+        if (url.startsWith(secureProtocol)) {
+            url = url.substring(secureProtocol.length());
+        } else if (url.startsWith(insecureProtocol)) {
+            url = url.substring(insecureProtocol.length());
+        }
+        
+        final String languageCode = url.substring(0, 2);
+        
+        if (!Arrays.asList(Locale.getISOLanguages()).contains(languageCode)) {
+            throw new CommandLineException(
+                    String.format(
+                            "Unknown language code: %s",
+                            languageCode));
+        }
+        
+        return languageCode;
+    }
+    
+    /**
+     * Returns the maximum URL length extracted from {@code linkPathNodeList}.
+     * 
+     * @param linkPathNodeList the list of {@link LinkPathNode} objects.
+     * 
+     * @return the maximum URL length in {@code linkPathNodeList}. 
+     */
     private static int getMaximumUrlLength(
             final List<LinkPathNode> linkPathNodeList) {
         
@@ -244,28 +383,6 @@ public final class WikiGameKiller {
                                      articleTitle, 
                                      Charset.forName("UTF-8")))
                 .replace("+", "_");
-    }
-    
-    private static String getLanguageCode(String url) {
-        final String secureProtocol = "https://";
-        final String insecureProtocol = "http://";
-        
-        if (url.startsWith(secureProtocol)) {
-            url = url.substring(secureProtocol.length());
-        } else if (url.startsWith(insecureProtocol)) {
-            url = url.substring(insecureProtocol.length());
-        }
-        
-        final String languageCode = url.substring(0, 2);
-        
-        if (!Arrays.asList(Locale.getISOLanguages()).contains(languageCode)) {
-            throw new CommandLineException(
-                    String.format(
-                            "Unknown language code: %s",
-                            languageCode));
-        }
-        
-        return languageCode;
     }
     
     private static void validateTerminalNodes(
@@ -420,43 +537,6 @@ public final class WikiGameKiller {
         return commandLineArguments;
     }
     
-    private static Map<String, Integer> computeArgumentMap(String[] args) {
-        Map<String, Integer> map = new HashMap<>(args.length);
-        
-        for (int i = 0; i < args.length; i++) {
-            map.put(args[i], i);
-        }
-        
-        return map;
-    }
-    
-    private static String getArgumentStringValue(String[] args, int index) {
-        checkValueFitsInCommandLine(args, index);
-        return args[index];
-    }
-    
-    private static int getArgumentIntValue(String[] args, int index) {
-        checkValueFitsInCommandLine(args, index);
-        
-        try {
-            return Integer.parseInt(args[index]);
-        } catch (final NumberFormatException ex) {
-            throw new CommandLineException(
-                    String.format(
-                            "\"%s\" is not an integer.",
-                            args[index + 1]));
-        }
-    }
-    
-    private static void checkValueFitsInCommandLine(String[] args, int index) {
-        if (index >= args.length) {
-            throw new CommandLineException(
-                    String.format(
-                            "The argument \"%s\" has no value.", 
-                            args[index]));
-        }
-    }
-    
     public static final class CommandLineException extends RuntimeException {
         
         CommandLineException(final String exceptionMessage) {
@@ -470,17 +550,6 @@ public final class WikiGameKiller {
           .getLocation()
           .getPath())
           .getName();
-    }
-    
-    static void checkWikipediaArticleFormat(final String url) {
-        Matcher matcher = WIKIPEDIA_URL_FORMAT_PATTERN.matcher(url);
-        
-        if (!matcher.find()) {
-            throw new CommandLineException(
-                    String.format(
-                            "URL \"%s\" is not a valid Wikipedia URL.",
-                            url));
-        }
     }
     
     private static List<String> stripHostAddress(final List<String> urlList) {
