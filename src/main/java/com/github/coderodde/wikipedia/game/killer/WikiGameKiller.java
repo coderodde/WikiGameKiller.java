@@ -24,6 +24,11 @@ import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+/**
+ * This program implements a Wiki game killer. The program asks a source 
+ * Wikipedia article URL, and a target Wikipedia article URL, and finds (almost
+ * always) a shortest link path from the source article to the target article.
+ */
 public final class WikiGameKiller {
     
     /**
@@ -221,8 +226,8 @@ public final class WikiGameKiller {
      * 
      * @param url the URL to check.
      * 
-     * @throws an instance of {@link CommandLineException} if the input URL is 
-     *         not a valid Wikipedia URL.
+     * @throws CommandLineException if the input URL is not a valid Wikipedia
+     *                              URL.
      */
     static void checkWikipediaArticleFormat(final String url) {
         Matcher matcher = WIKIPEDIA_URL_FORMAT_PATTERN.matcher(url);
@@ -261,9 +266,9 @@ public final class WikiGameKiller {
      * 
      * @return the integer value of the {@code index}th argument.
      * 
-     * @throws an instance of {@link CommandLineException} if either the index
-     *         is outside of the argument array, or the {@code index}th argument
-     *         is not an integer.
+     * @throws CommandLineException if either the index is outside of the 
+     *                              argument array, or the {@code index}th
+     *                              argument is not an integer.
      */
     private static int getArgumentIntValue(final String[] args,
                                            final int index) {
@@ -288,8 +293,8 @@ public final class WikiGameKiller {
      * 
      * @return the string value of the {@code index}th argument.
      * 
-     * @throws an instance of {@link CommandLineException} if the index is 
-     *         outside of the argument array.
+     * @throws CommandLineException if the index is outside of the argument
+     *                              array.
      */
     private static String getArgumentStringValue(String[] args, int index) {
         checkValueFitsInCommandLine(args, index);
@@ -303,8 +308,8 @@ public final class WikiGameKiller {
      * 
      * @return the language code.
      * 
-     * @throws an instance of {@link CommandLineException} if the resulting 
-     *         language code does not conform to ISO.
+     * @throws CommandLineException if the resulting language code does not 
+     *                              conform to ISO.
      */
     private static String getLanguageCode(String url) {
         final String secureProtocol = "https://";
@@ -635,9 +640,13 @@ public final class WikiGameKiller {
                 .replace("+", "_");
     }
     
+    /**
+     * This class implements an exception class instances of which are thrown
+     * when something bad happens while working.
+     */
     public static final class CommandLineException extends RuntimeException {
         
-        CommandLineException(final String exceptionMessage) {
+                                                    CommandLineException(final String exceptionMessage) {
             super(exceptionMessage);
         }
     }
@@ -667,6 +676,9 @@ public final class WikiGameKiller {
             return stripHostAddress(urlList);
         }
 
+        /**
+         * {@inheritDoc }
+         */
         @Override
         public boolean isValidNode(final String article) {
             return expander.isValidNode(article);
@@ -698,7 +710,10 @@ public final class WikiGameKiller {
             List<String> urlList = expander.generateSuccessors(article);
             return stripHostAddress(urlList);
         }
-
+        
+        /**
+         * {@inheritDoc }
+         */
         @Override
         public boolean isValidNode(final String article) {
             return expander.isValidNode(article);
