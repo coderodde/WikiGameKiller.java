@@ -24,6 +24,9 @@ A nice help message will appear telling you how to use it! :-)
 
 ```
 java -jar WikiGameKiller.java-1.0.0.jar --source https://en.wikipedia.org/wiki/Korie --target https://en.wikipedia.org/wiki/Bugatti --threads 300 --stats --out ..\index.html --expansion-timeout 4000
+```
+A sample output is:
+```
 [STATISTICS] Duration: 5284 milliseconds, expanded nodes: 1539 nodes.
 https://en.wikipedia.org/wiki/Korie                  [Korie]
 https://en.wikipedia.org/wiki/Korie_Homan            [Korie Homan]
