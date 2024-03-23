@@ -184,21 +184,14 @@ public final class WikiGameKiller {
                                  final int numberOfExpandedNodes) {
         File file = new File(fileName);
         
-        if (!file.exists()) {
-            try {
-                if (!file.createNewFile()) {
-                    throw new CommandLineException(
-                            String.format(
-                                    "Could not create file \"%s\".", 
-                                    fileName));
-                }
-            } catch (IOException ex) {
+        if (file.exists()) {
+            if (!file.delete()) {
                 throw new CommandLineException(
                         String.format(
-                                "Could not create file \"%s\".", 
+                                "Could not delete the file \"%s\".", 
                                 fileName));
             }
-        } 
+        }
         
         String html;
         
@@ -209,17 +202,16 @@ public final class WikiGameKiller {
                             "Duration: %d milliseconds, expanded %d nodes.", 
                             duration, 
                             numberOfExpandedNodes),
-                    getPathListHtml(linkPathNodeList));
+                    getPathTableHtml(linkPathNodeList));
         } else {
             html = String.format(
                     HTML_TEMPLATE, 
                     "",
-                    getPathListHtml(linkPathNodeList));
+                    getPathTableHtml(linkPathNodeList));
         }
         
-        try {
-            final BufferedWriter bufferedWriter = 
-                    new BufferedWriter(new FileWriter(file));
+        try (BufferedWriter bufferedWriter =
+                new BufferedWriter(new FileWriter(file))) {
             
             bufferedWriter.write(html);
             bufferedWriter.close();
@@ -229,20 +221,17 @@ public final class WikiGameKiller {
         }
     }
     
-    private static String getPathListHtml(
+    private static String getPathTableHtml(
             final List<LinkPathNode> linkPathNodeList) {
         
         StringBuilder stringBuilder = new StringBuilder();
         
         int lineNumber = 1;
-
-        stringBuilder.append("            <table>\n");
         
         for (final LinkPathNode linkPathNode : linkPathNodeList) {
             stringBuilder.append(linkPathNode.toTableRowHtml(lineNumber++));
         }
         
-        stringBuilder.append("            </table>");
         return stringBuilder.toString();
     }
     
@@ -312,8 +301,7 @@ public final class WikiGameKiller {
                     <div>
                         <h3>Shortest path:</h3>
                         <table>
-                            %s
-                        </table>
+            %s            </table>
                     </div>
                 <body>
             </html>
