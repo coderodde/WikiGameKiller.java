@@ -26,13 +26,43 @@ import java.util.regex.Pattern;
 
 public final class WikiGameKiller {
     
+    /**
+     * Specifies the HTML file format.
+     */
+    private static final String HTML_TEMPLATE = 
+            """
+            <!DOCTYPE html>
+            <html>
+                <head>
+                    <title>WikiGameKiller.java</title>
+                </head>
+                <body>
+                    <div>%s</div>
+                    <div>
+                        <h3>Shortest path:</h3>
+                        <table>
+            %s            </table>
+                    </div>
+                <body>
+            </html>
+            """;
+    
+    /**
+     * Custom {@link PrintStream} for dealing with UTF-8 text.
+     */
+    private static PrintStream OUT;
+    
+    /**
+     * The Wikipedia URL format.
+     */
     private static final String WIKIPEDIA_URL_FORMAT =
             "^((http:\\/\\/)|(https:\\/\\/))?..\\.wikipedia\\.org\\/wiki\\/.+$";
     
+    /**
+     * The Wikipedia URL regular expression pattern object.
+     */
     private static final Pattern WIKIPEDIA_URL_FORMAT_PATTERN = 
             Pattern.compile(WIKIPEDIA_URL_FORMAT);
-    
-    private static PrintStream OUT;
     
     static {
         try {
@@ -43,7 +73,9 @@ public final class WikiGameKiller {
         }
     }
             
-
+    /**
+     * This class simply holds all the command line arguments.
+     */
     private static final class CommandLineArguments {
         String source           = null;
         String target           = null;
@@ -316,50 +348,26 @@ public final class WikiGameKiller {
         return maximumUrlLength;
     }
     
-    private static void saveFile(final String fileName,
-                                 final List<LinkPathNode> linkPathNodeList,
-                                 final boolean showStats,
-                                 final long duration,
-                                 final int numberOfExpandedNodes) {
-        File file = new File(fileName);
-        
-        if (file.exists()) {
-            if (!file.delete()) {
-                throw new CommandLineException(
-                        String.format(
-                                "Could not delete the file \"%s\".", 
-                                fileName));
-            }
-        }
-        
-        String html;
-        
-        if (showStats) {
-            html = String.format(
-                    HTML_TEMPLATE,
-                    String.format(
-                            "Duration: %d milliseconds, expanded %d nodes.", 
-                            duration, 
-                            numberOfExpandedNodes),
-                    getPathTableHtml(linkPathNodeList));
-        } else {
-            html = String.format(
-                    HTML_TEMPLATE, 
-                    "",
-                    getPathTableHtml(linkPathNodeList));
-        }
-        
-        try (BufferedWriter bufferedWriter =
-                new BufferedWriter(new FileWriter(file))) {
-            
-            bufferedWriter.write(html);
-            bufferedWriter.close();
-        } catch (IOException ex) {
-            throw new CommandLineException(
-                    "Could not create a buffered writer.");
-        }
+    /**
+     * Returns the current name of this .jar file. Used in the help message.
+     * 
+     * @return the current name of this .jar file.
+     */
+    private static String getPath() {
+        return new java.io.File(WikiGameKiller.class.getProtectionDomain()
+          .getCodeSource()
+          .getLocation()
+          .getPath())
+          .getName();
     }
     
+    /**
+     * Returns the HTML code for the link path table.
+     * 
+     * @param linkPathNodeList the list of link path nodes.
+     * 
+     * @return the HTML code for the link path table.
+     */
     private static String getPathTableHtml(
             final List<LinkPathNode> linkPathNodeList) {
         
@@ -374,94 +382,20 @@ public final class WikiGameKiller {
         return stringBuilder.toString();
     }
     
-    private static String wrapToUrl(final String articleTitle, 
-                                    final String languageCode) {
-        
-        return String.format("https://%s.wikipedia.org/wiki/%s", 
-                             languageCode, 
-                             URLEncoder.encode(
-                                     articleTitle, 
-                                     Charset.forName("UTF-8")))
-                .replace("+", "_");
-    }
-    
-    private static void validateTerminalNodes(
-            final AbstractNodeExpander<String> forwardExpander,
-            final AbstractNodeExpander<String> backwardExpander,
-            String source, 
-            String target) {
-        
-        if (!forwardExpander.isValidNode(source)) {
-            throw new CommandLineException(
-                    String.format(
-                            "The source node \"%s\" is not a valid node.",
-                            source));
-        }
-        
-        if (!backwardExpander.isValidNode(target)) {
-            throw new CommandLineException(
-                    String.format(
-                            "The target node \"%s\" is not a valid node.",
-                            target));
-        }
-    }
-    
-    private static final String HTML_TEMPLATE = 
-            """
-            <!DOCTYPE html>
-            <html>
-                <head>
-                    <title>WikiGameKiller.java</title>
-                </head>
-                <body>
-                    <div>%s</div>
-                    <div>
-                        <h3>Shortest path:</h3>
-                        <table>
-            %s            </table>
-                    </div>
-                <body>
-            </html>
-            """;
-    
-    private static void printHelp() {
-        OUT.printf(
-        """
-        usage: %s
-            --source SOURCE_ARTICLE_URL
-            --target TARGET_ARTICLE_URL
-           [--threads NUMBER_OF_THREADS]
-           [--master-trials TRIALS]
-           [--master-sleep-duration MASTER_SLEEP_MILLIS]
-           [--slave-sleep-duration SLAVE_SLEEP_MILLIS]
-           [--expansion-timeout EXPANSION_TIMEOUT_MILLIS]
-           [--lock-wait-timeout LOCK_WAIT_MILLIS]
-           [--help]
-           [--stats]
-           [--out OUTPUT_HTML_FILE_NAME]
-        
-            where:
-                NUMBER_OF_THREADS        - the total number of threads.        Default is %d.
-                TRIALS                   - the number of master thread trials. Default is %d.
-                MASTER_SLEEP_MILLIS      - the number of milliseconds.         Default is %d.
-                SLAVE_SLEEP_MILLIS       - the number of milliseconds.         Default is %d.
-                EXPANSION_TIMEOUT_MILLIS - the number of milliseconds.         Default is %d.
-                LOCK_WAIT_MILLIS         - the number of milliseconds.         Default is %d.
-        
-                --help  - Print this help message.
-                --stats - Print the search statistics after the search.
-        """,
-        getPath(),
-        ThreadPoolBidirectionalBFSPathFinder.DEFAULT_NUMBER_OF_THREADS,
-        ThreadPoolBidirectionalBFSPathFinder.DEFAULT_NUMBER_OF_MASTER_TRIALS,
-        ThreadPoolBidirectionalBFSPathFinder.DEFAULT_MASTER_THREAD_SLEEP_DURATION_MILLIS,
-        ThreadPoolBidirectionalBFSPathFinder.DEFAULT_SLAVE_THREAD_SLEEP_DURATION_MILLIS,
-        ThreadPoolBidirectionalBFSPathFinder.DEFAULT_EXPANSION_JOIN_DURATION_MILLIS,
-        ThreadPoolBidirectionalBFSPathFinder.DEFAULT_LOCK_WAIT_MILLIS
-        );
-    }
-    
-    private static CommandLineArguments parseCommandLineArguments(String[] args) {
+    /**
+     * Parses the entire command line excluding the Java VM call 
+     * ({@code java -jar FILE.jar}).
+     * 
+     * @param args the array of arguments.
+     * 
+     * @return the {@code CommandLineArguments} object describing the command 
+     *         line invocation.
+     * 
+     * @throws CommandLineException if there are problems with the command line.
+     */
+    private static CommandLineArguments
+         parseCommandLineArguments(String[] args) {
+             
         Map<String, Integer> map = computeArgumentMap(args);
         
         if (map.containsKey("--help")) {
@@ -536,22 +470,110 @@ public final class WikiGameKiller {
         
         return commandLineArguments;
     }
-    
-    public static final class CommandLineException extends RuntimeException {
+         
+    /**
+     * Prints the help message.
+     */
+    private static void printHelp() {
+        OUT.printf(
+        """
+        usage: %s
+            --source SOURCE_ARTICLE_URL
+            --target TARGET_ARTICLE_URL
+           [--threads NUMBER_OF_THREADS]
+           [--master-trials TRIALS]
+           [--master-sleep-duration MASTER_SLEEP_MILLIS]
+           [--slave-sleep-duration SLAVE_SLEEP_MILLIS]
+           [--expansion-timeout EXPANSION_TIMEOUT_MILLIS]
+           [--lock-wait-timeout LOCK_WAIT_MILLIS]
+           [--help]
+           [--stats]
+           [--out OUTPUT_HTML_FILE_NAME]
         
-        CommandLineException(final String exceptionMessage) {
-            super(exceptionMessage);
+            where:
+                NUMBER_OF_THREADS        - the total number of threads.        Default is %d.
+                TRIALS                   - the number of master thread trials. Default is %d.
+                MASTER_SLEEP_MILLIS      - the number of milliseconds.         Default is %d.
+                SLAVE_SLEEP_MILLIS       - the number of milliseconds.         Default is %d.
+                EXPANSION_TIMEOUT_MILLIS - the number of milliseconds.         Default is %d.
+                LOCK_WAIT_MILLIS         - the number of milliseconds.         Default is %d.
+        
+                --help  - Print this help message.
+                --stats - Print the search statistics after the search.
+        """,
+        getPath(),
+        ThreadPoolBidirectionalBFSPathFinder.DEFAULT_NUMBER_OF_THREADS,
+        ThreadPoolBidirectionalBFSPathFinder.DEFAULT_NUMBER_OF_MASTER_TRIALS,
+        ThreadPoolBidirectionalBFSPathFinder.DEFAULT_MASTER_THREAD_SLEEP_DURATION_MILLIS,
+        ThreadPoolBidirectionalBFSPathFinder.DEFAULT_SLAVE_THREAD_SLEEP_DURATION_MILLIS,
+        ThreadPoolBidirectionalBFSPathFinder.DEFAULT_EXPANSION_JOIN_DURATION_MILLIS,
+        ThreadPoolBidirectionalBFSPathFinder.DEFAULT_LOCK_WAIT_MILLIS
+        );
+    }
+    
+    /**
+     * Attempts to save the results to an HTML file.
+     * 
+     * @param fileName              the name of the saved file.
+     * @param linkPathNodeList      the link path node list.
+     * @param showStats             if {@code true}, statistics will be saved.
+     * @param duration              the duration of the search.
+     * @param numberOfExpandedNodes the number of expanded nodes.
+     * 
+     * @throws CommandLineException if something goes wrong.
+     */
+    private static void saveFile(final String fileName,
+                                 final List<LinkPathNode> linkPathNodeList,
+                                 final boolean showStats,
+                                 final long duration,
+                                 final int numberOfExpandedNodes) {
+        File file = new File(fileName);
+        
+        if (file.exists()) {
+            if (!file.delete()) {
+                throw new CommandLineException(
+                        String.format(
+                                "Could not delete the file \"%s\".", 
+                                fileName));
+            }
+        }
+        
+        String html;
+        
+        if (showStats) {
+            html = String.format(
+                    HTML_TEMPLATE,
+                    String.format(
+                            "Duration: %d milliseconds, expanded %d nodes.", 
+                            duration, 
+                            numberOfExpandedNodes),
+                    getPathTableHtml(linkPathNodeList));
+        } else {
+            html = String.format(
+                    HTML_TEMPLATE, 
+                    "",
+                    getPathTableHtml(linkPathNodeList));
+        }
+        
+        try (BufferedWriter bufferedWriter =
+                new BufferedWriter(new FileWriter(file))) {
+            
+            bufferedWriter.write(html);
+            bufferedWriter.close();
+        } catch (IOException ex) {
+            throw new CommandLineException(
+                    "Could not create a buffered writer.");
         }
     }
     
-    private static String getPath() {
-        return new java.io.File(WikiGameKiller.class.getProtectionDomain()
-          .getCodeSource()
-          .getLocation()
-          .getPath())
-          .getName();
-    }
-    
+    /**
+     * Strinps the protocol, host name and {@code wiki} path from each URL in
+     * the {@code urlList}. For example, 
+     * {@code https://en.wikipedia.org/en/Hiisi} becomes simply {@code Hiisi}.
+     * 
+     * @param urlList the list of URLs.
+     * @return the list of stripped URLs.
+     */
     private static List<String> stripHostAddress(final List<String> urlList) {
         List<String> result = new ArrayList<>(urlList.size());
         
@@ -562,6 +584,67 @@ public final class WikiGameKiller {
         return result;
     }
     
+    /**
+     * Makes sure that the two terminal nodes are valid Wikipedia article nodes.
+     * 
+     * @param forwardExpander  the forward link expander.
+     * @param backwardExpander the backward link expander.
+     * @param source           the source node.
+     * @param target           the target node.
+     * 
+     * @throws CommandLineException if could not validate both terminal nodes.
+     */
+    private static void validateTerminalNodes(
+            final AbstractNodeExpander<String> forwardExpander,
+            final AbstractNodeExpander<String> backwardExpander,
+            String source, 
+            String target) {
+        
+        if (!forwardExpander.isValidNode(source)) {
+            throw new CommandLineException(
+                    String.format(
+                            "The source node \"%s\" is not a valid node.",
+                            source));
+        }
+        
+        if (!backwardExpander.isValidNode(target)) {
+            throw new CommandLineException(
+                    String.format(
+                            "The target node \"%s\" is not a valid node.",
+                            target));
+        }
+    }
+    
+    /**
+     * Wraps {@code articleTitle} and {@code languageCode} into a valid 
+     * Wikipedia URL.
+     * 
+     * @param articleTitle the title of the article.
+     * @param languageCode the language code of the article.
+     * 
+     * @return a full Wikipedia URL.
+     */
+    private static String wrapToUrl(final String articleTitle, 
+                                    final String languageCode) {
+        
+        return String.format("https://%s.wikipedia.org/wiki/%s", 
+                             languageCode, 
+                             URLEncoder.encode(
+                                     articleTitle, 
+                                     Charset.forName("UTF-8")))
+                .replace("+", "_");
+    }
+    
+    public static final class CommandLineException extends RuntimeException {
+        
+        CommandLineException(final String exceptionMessage) {
+            super(exceptionMessage);
+        }
+    }
+    
+    /**
+     * This class implements the forward link expander.
+     */
     private static final class ForwardLinkExpander 
             extends AbstractNodeExpander<String> {
 
@@ -571,6 +654,13 @@ public final class WikiGameKiller {
             this.expander = new ForwardWikipediaGraphNodeExpander(languageCode);
         }
         
+        /**
+         * Generate all the links that this article links to.
+         * 
+         * @param article the source article of each link.
+         * 
+         * @return all the article titles that {@code article} links to.
+         */
         @Override
         public List<String> generateSuccessors(final String article) {
             List<String> urlList = expander.generateSuccessors(article);
@@ -583,6 +673,9 @@ public final class WikiGameKiller {
         }
     }
     
+    /**
+     * This class implements the backward link expander. 
+     */
     private static final class BackwardLinkExpander 
             extends AbstractNodeExpander<String> {
 
@@ -593,6 +686,13 @@ public final class WikiGameKiller {
                     new BackwardWikipediaGraphNodeExpander(languageCode);
         }
         
+        /**
+         * Generate all the links pointing to the article {@code article}.
+         * 
+         * @param article the target article of each link.
+         * 
+         * @return all the article titles linking to {@code article}.
+         */
         @Override
         public List<String> generateSuccessors(final String article) {
             List<String> urlList = expander.generateSuccessors(article);
