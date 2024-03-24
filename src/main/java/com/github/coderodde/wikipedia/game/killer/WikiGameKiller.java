@@ -75,7 +75,7 @@ public final class WikiGameKiller {
     static {
         try {
             OUT = new PrintStream(System.out, true, "UTF-8");
-        } catch (UnsupportedEncodingException ex) {
+        } catch (final UnsupportedEncodingException ex) {
             System.out.printf("ERROR: %.\n", ex.getMessage());
             System.exit(1);
         }
@@ -119,7 +119,7 @@ public final class WikiGameKiller {
             String languageCodeTarget = getLanguageCode(target);
             
             if (!languageCodeSource.equals(languageCodeTarget)) {
-                throw new CommandLineException(
+                throw new RuntimeException(
                         String.format(
                                 "Language code mismatch: \"%s\" vs \"%s\".", 
                                 languageCodeSource, 
@@ -205,12 +205,9 @@ public final class WikiGameKiller {
                          finder.getNumberOfExpandedNodes());
             }
             
-        } catch (final CommandLineException ex) {
+        } catch (final RuntimeException ex) {
             OUT.printf("ERROR: %s\n", ex.getMessage());
             System.exit(3);
-        } catch (final Exception ex) {
-            OUT.printf("Halting the search: %s\n", ex.getMessage());
-            System.exit(4);
         }
     }
 
@@ -227,7 +224,7 @@ public final class WikiGameKiller {
      */
     private static void checkValueFitsInCommandLine(String[] args, int index) {
         if (index >= args.length) {
-            throw new CommandLineException(
+            throw new RuntimeException(
                     String.format(
                             "The argument \"%s\" has no value.", 
                             args[index]));
@@ -246,7 +243,7 @@ public final class WikiGameKiller {
         Matcher matcher = WIKIPEDIA_URL_FORMAT_PATTERN.matcher(url);
         
         if (!matcher.find()) {
-            throw new CommandLineException(
+            throw new RuntimeException(
                     String.format(
                             "URL \"%s\" is not a valid Wikipedia URL.",
                             url));
@@ -272,7 +269,7 @@ public final class WikiGameKiller {
     }
     
     /**
-     * Attemtps to read an integer value of the {@code index}th argument.
+     * Attempts to read an integer value of the {@code index}th argument.
      * 
      * @param args  the argument array.
      * @param index the argument array index.
@@ -291,7 +288,7 @@ public final class WikiGameKiller {
         try {
             return Integer.parseInt(args[index]);
         } catch (final NumberFormatException ex) {
-            throw new CommandLineException(
+            throw new RuntimeException(
                     String.format(
                             "\"%s\" is not an integer.",
                             args[index + 1]));
@@ -337,7 +334,7 @@ public final class WikiGameKiller {
         final String languageCode = url.substring(0, 2);
         
         if (!Arrays.asList(Locale.getISOLanguages()).contains(languageCode)) {
-            throw new CommandLineException(
+            throw new RuntimeException(
                     String.format(
                             "Unknown language code: %s",
                             languageCode));
@@ -418,7 +415,7 @@ public final class WikiGameKiller {
         
         if (map.containsKey("--help")) {
             if (map.size() > 1) {
-                throw new CommandLineException(
+                throw new RuntimeException(
                         "--help must be the only argument.");
             }
             
@@ -428,11 +425,11 @@ public final class WikiGameKiller {
         }
         
         if (!map.containsKey("--source")) {
-            throw new CommandLineException("--source option is missing.");
+            throw new RuntimeException("--source option is missing.");
         }
         
         if (!map.containsKey("--target")) {
-            throw new CommandLineException("--target option is missing.");
+            throw new RuntimeException("--target option is missing.");
         }
         
         CommandLineArguments commandLineArguments = new CommandLineArguments();
@@ -549,7 +546,7 @@ public final class WikiGameKiller {
         
         if (file.exists()) {
             if (!file.delete()) {
-                throw new CommandLineException(
+                throw new RuntimeException(
                         String.format(
                                 "Could not delete the file \"%s\".", 
                                 fileName));
@@ -579,7 +576,7 @@ public final class WikiGameKiller {
             bufferedWriter.write(html);
             bufferedWriter.close();
         } catch (IOException ex) {
-            throw new CommandLineException(
+            throw new RuntimeException(
                     "Could not create a buffered writer.");
         }
     }
@@ -621,7 +618,7 @@ public final class WikiGameKiller {
         try {
             forwardExpander .isValidNode(source);
         } catch (final Exception ex) {
-            throw new CommandLineException(
+            throw new RuntimeException(
                     String.format(
                             "The source node \"%s\" is not a valid node.",
                             source));
@@ -630,7 +627,7 @@ public final class WikiGameKiller {
         try {
             backwardExpander.isValidNode(target);
         } catch (final Exception ex) {
-            throw new CommandLineException(
+            throw new RuntimeException(
                     String.format(
                             "The target node \"%s\" is not a valid node.",
                             target));
@@ -655,17 +652,6 @@ public final class WikiGameKiller {
                                      articleTitle, 
                                      Charset.forName("UTF-8")))
                 .replace("+", "_");
-    }
-    
-    /**
-     * This class implements an exception class instances of which are thrown
-     * when something bad happens while working.
-     */
-    public static final class CommandLineException extends RuntimeException {
-        
-        CommandLineException(final String exceptionMessage) {
-            super(exceptionMessage);
-        }
     }
     
     /**

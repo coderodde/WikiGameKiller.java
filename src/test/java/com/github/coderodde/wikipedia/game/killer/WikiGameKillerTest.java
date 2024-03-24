@@ -1,8 +1,5 @@
 package com.github.coderodde.wikipedia.game.killer;
 
-
-import com.github.coderodde.wikipedia.game.killer.WikiGameKiller.CommandLineException;
-import static org.junit.Assert.fail;
 import org.junit.Test;
 
 public final class WikiGameKillerTest {
@@ -28,25 +25,25 @@ public final class WikiGameKillerTest {
                 "https://en.wikipedia.org/wiki/hello");
     }
     
-    @Test(expected = CommandLineException.class)
+    @Test(expected = RuntimeException.class)
     public void throwOnBadProtocol() {
         WikiGameKiller.checkWikipediaArticleFormat(
                 "htp://en.wikipedia.org/wiki/hello");
     }
     
-    @Test(expected = CommandLineException.class)
+    @Test(expected = RuntimeException.class)
     public void throwOnBadLanguageCode() {
         WikiGameKiller.checkWikipediaArticleFormat(
                 "damn.wikipedia.org/wiki/hello");
     }
     
-    @Test(expected = CommandLineException.class)
+    @Test(expected = RuntimeException.class)
     public void throwOnBadHostName() {
         WikiGameKiller.checkWikipediaArticleFormat(
                 "fi.wikipdia.org/wiki/hello");
     }
     
-    @Test(expected = CommandLineException.class)
+    @Test(expected = RuntimeException.class)
     public void throwOnMissingArticleTitle() {
         WikiGameKiller.checkWikipediaArticleFormat(
                 "fi.wikipedia.org/wiki/");
