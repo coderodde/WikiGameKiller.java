@@ -646,7 +646,7 @@ public final class WikiGameKiller {
      */
     public static final class CommandLineException extends RuntimeException {
         
-                                                    CommandLineException(final String exceptionMessage) {
+        CommandLineException(final String exceptionMessage) {
             super(exceptionMessage);
         }
     }
