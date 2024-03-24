@@ -1,3 +1,11 @@
+## The Wiki Game rules
+
+1. all the players agree on two random Wikipedia articles `source` and `target`.
+2. All the players must try to find a path from the source article to the target article only via links.
+3. The player with the shortest article path wins.
+4. If there is more than one players with the shortest path, the player who found the path the fastest wins.
+
+
 ## Installing the WikiGameKiller.java
 
 Run these from your terminal:
