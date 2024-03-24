@@ -12,6 +12,7 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.io.UnsupportedEncodingException;
+import java.net.MalformedURLException;
 import java.net.URLDecoder;
 import java.net.URLEncoder;
 import java.nio.charset.Charset;
@@ -21,6 +22,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -74,7 +77,7 @@ public final class WikiGameKiller {
             OUT = new PrintStream(System.out, true, "UTF-8");
         } catch (UnsupportedEncodingException ex) {
             System.out.printf("ERROR: %.\n", ex.getMessage());
-            System.exit(2);
+            System.exit(1);
         }
     }
             
@@ -151,14 +154,21 @@ public final class WikiGameKiller {
                     .withNumberOfRequestedThreads(commandLineArguments.threads)
                     .end();
             
-            List<String> path = 
-                    ThreadPoolBidirectionalBFSPathFinderSearchBuilder
-                            .<String>withPathFinder(finder)
-                            .withSourceNode(source)
-                            .withTargetNode(target)
-                            .withForwardNodeExpander(forwardLinkExpander)
-                            .withBackwardNodeExpander(backwardLinkExpander)
-                            .search();
+            List<String> path;
+            
+            try {
+                path = ThreadPoolBidirectionalBFSPathFinderSearchBuilder
+                        .<String>withPathFinder(finder)
+                        .withSourceNode(source)
+                        .withTargetNode(target)
+                        .withForwardNodeExpander(forwardLinkExpander)
+                        .withBackwardNodeExpander(backwardLinkExpander)
+                        .search();
+            } catch (final Exception ex) {
+                System.err.printf("ERROR: %s.", ex.getMessage());
+                System.exit(2);
+                return;
+            }
             
             if (commandLineArguments.printStatistics) {
                 OUT.printf(
@@ -197,7 +207,10 @@ public final class WikiGameKiller {
             
         } catch (final CommandLineException ex) {
             OUT.printf("ERROR: %s\n", ex.getMessage());
-            System.exit(1);
+            System.exit(3);
+        } catch (final Exception ex) {
+            OUT.printf("Halting the search: %s\n", ex.getMessage());
+            System.exit(4);
         }
     }
 
@@ -605,14 +618,18 @@ public final class WikiGameKiller {
             String source, 
             String target) {
         
-        if (!forwardExpander.isValidNode(source)) {
+        try {
+            forwardExpander .isValidNode(source);
+        } catch (final Exception ex) {
             throw new CommandLineException(
                     String.format(
                             "The source node \"%s\" is not a valid node.",
                             source));
         }
         
-        if (!backwardExpander.isValidNode(target)) {
+        try {
+            backwardExpander.isValidNode(target);
+        } catch (final Exception ex) {
             throw new CommandLineException(
                     String.format(
                             "The target node \"%s\" is not a valid node.",
@@ -672,8 +689,7 @@ public final class WikiGameKiller {
          */
         @Override
         public List<String> generateSuccessors(final String article) {
-            List<String> urlList = expander.generateSuccessors(article);
-            return stripHostAddress(urlList);
+            return stripHostAddress(expander.getNeighbors(article));
         }
 
         /**
@@ -704,11 +720,12 @@ public final class WikiGameKiller {
          * @param article the target article of each link.
          * 
          * @return all the article titles linking to {@code article}.
+         * 
+         * @throws java.lang.Exception if something fails.
          */
         @Override
         public List<String> generateSuccessors(final String article) {
-            List<String> urlList = expander.generateSuccessors(article);
-            return stripHostAddress(urlList);
+            return stripHostAddress(expander.getNeighbors(article));
         }
         
         /**
