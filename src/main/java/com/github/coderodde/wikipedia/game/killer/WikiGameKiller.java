@@ -12,7 +12,6 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.io.UnsupportedEncodingException;
-import java.net.MalformedURLException;
 import java.net.URLDecoder;
 import java.net.URLEncoder;
 import java.nio.charset.Charset;
@@ -20,11 +19,11 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -425,6 +424,8 @@ public final class WikiGameKiller {
             return commandLineSettings;
         }
         
+        reportUnknownArgumentFlags(args, map);
+        
         if (!map.containsKey("--source")) {
             throw new RuntimeException("--source option is missing.");
         }
@@ -525,6 +526,63 @@ public final class WikiGameKiller {
         ThreadPoolBidirectionalBFSPathFinder.DEFAULT_EXPANSION_JOIN_DURATION_MILLIS,
         ThreadPoolBidirectionalBFSPathFinder.DEFAULT_LOCK_WAIT_MILLIS
         );
+    }
+    
+    /**
+     * Reports unknown argument via an exception.
+     * 
+     * @param args        the argument array.
+     * @param argumentMap the map mapping each argument to its appearance index.
+     */
+    private static void reportUnknownArgumentFlags(
+            final String[] args,
+            final Map<String, Integer> argumentMap) {
+        
+        final Set<String> parametrizedFlags = new HashSet<>();
+        final Set<String> nonParametrizedFlags = new HashSet<>();
+        
+        parametrizedFlags.add("--source");
+        parametrizedFlags.add("--target");
+        parametrizedFlags.add("--threads");
+        parametrizedFlags.add("--master-trials");
+        parametrizedFlags.add("--master-sleep-duration");
+        parametrizedFlags.add("--slave-sleep-duration");
+        parametrizedFlags.add("--expansion-timeout");
+        parametrizedFlags.add("--lock-wait-timeout");
+        parametrizedFlags.add("--out");
+        
+        nonParametrizedFlags.add("--help");
+        nonParametrizedFlags.add("--stats");
+        
+        final Set<Integer> omitIndices = new HashSet<>();
+        
+        for (int i = 0; i < args.length; i++) {
+            final String arg = args[i];
+            
+            if (parametrizedFlags.contains(arg) && 
+                argumentMap.keySet().contains(arg)) {
+                
+                omitIndices.add(i);
+                omitIndices.add(i + 1);
+            }
+        }
+        
+        for (int i = 0; i < args.length; i++) {
+            if (omitIndices.contains(i)) {
+                continue;
+            } 
+            
+            final String flag = args[i];
+            
+            if (argumentMap.keySet().contains(flag) &&
+                !nonParametrizedFlags.contains(flag)) {
+                
+                throw new RuntimeException(
+                        String.format(
+                                "Unknown flag: \"%s\".", 
+                                flag));
+            }
+        }
     }
     
     /**
