@@ -18,6 +18,7 @@ import java.net.URLEncoder;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
@@ -675,7 +676,11 @@ public final class WikiGameKiller {
          */
         @Override
         public List<String> generateSuccessors(final String article) {
-            return stripHostAddress(expander.getNeighbors(article));
+            try {
+                return stripHostAddress(expander.getNeighbors(article));
+            } catch (Exception ex) {
+                return Collections.<String>emptyList();
+            }
         }
 
         /**
@@ -683,7 +688,11 @@ public final class WikiGameKiller {
          */
         @Override
         public boolean isValidNode(final String article) {
-            return expander.isValidNode(article);
+            try {
+                return expander.isValidNode(article);
+            } catch (Exception ex) {
+                return false;
+            }
         }
     }
     
@@ -711,7 +720,11 @@ public final class WikiGameKiller {
          */
         @Override
         public List<String> generateSuccessors(final String article) {
-            return stripHostAddress(expander.getNeighbors(article));
+            try {
+                return stripHostAddress(expander.getNeighbors(article));
+            } catch (Exception ex) {
+                return Collections.<String>emptyList();
+            }
         }
         
         /**
@@ -719,7 +732,11 @@ public final class WikiGameKiller {
          */
         @Override
         public boolean isValidNode(final String article) {
-            return expander.isValidNode(article);
+            try {
+                return expander.isValidNode(article);
+            } catch (Exception ex) {
+                return false;
+            }
         }
     }
     
