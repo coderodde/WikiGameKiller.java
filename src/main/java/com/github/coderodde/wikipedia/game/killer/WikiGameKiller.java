@@ -1,11 +1,14 @@
 package com.github.coderodde.wikipedia.game.killer;
 
-import com.github.coderodde.graph.pathfinding.delayed.AbstractNodeExpander;
-import com.github.coderodde.graph.pathfinding.delayed.impl.ThreadPoolBidirectionalBFSPathFinder;
-import com.github.coderodde.graph.pathfinding.delayed.impl.ThreadPoolBidirectionalBFSPathFinderBuilder;
-import com.github.coderodde.graph.pathfinding.delayed.impl.ThreadPoolBidirectionalBFSPathFinderSearchBuilder;
-import com.github.coderodde.wikipedia.graph.expansion.BackwardWikipediaGraphNodeExpander;
-import com.github.coderodde.wikipedia.graph.expansion.ForwardWikipediaGraphNodeExpander;
+import io.github.coderodde.graph.pathfinding.delayed.AbstractNodeExpander;
+import io.github.coderodde.graph.pathfinding.delayed.DirectionProgressListener;
+import io.github.coderodde.graph.pathfinding.delayed.impl.ThreadPoolBidirectionalBFSPathFinderBuilder;
+import io.github.coderodde.graph.pathfinding.delayed.impl.ThreadPoolBidirectionalBFSPathFinderSearchBuilder;
+import io.github.coderodde.wikipedia.graph.expansion.BackwardWikipediaGraphNodeExpander;
+import io.github.coderodde.wikipedia.graph.expansion.ForwardWikipediaGraphNodeExpander;
+import io.github.coderodde.graph.pathfinding.delayed.impl.ThreadPoolBidirectionalBFSPathFinder;
+import static io.github.coderodde.graph.pathfinding.delayed.impl.ThreadPoolBidirectionalBFSPathFinder.*;
+import io.github.coderodde.wikipedia.json.downloader.WikipediaArticleJsonDownloader;
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
@@ -76,7 +79,7 @@ public final class WikiGameKiller {
         try {
             OUT = new PrintStream(System.out, true, "UTF-8");
         } catch (final UnsupportedEncodingException ex) {
-            System.out.printf("ERROR: %.\n", ex.getMessage());
+            System.out.printf("[ERROR]: %s.\n", ex.getMessage());
             System.exit(1);
         }
     }
@@ -85,17 +88,17 @@ public final class WikiGameKiller {
      * This class simply holds all the command line arguments.
      */
     private static final class CommandLineArguments {
-        String source           = null;
-        String target           = null;
-        String outFileName      = null;
-        int threads             = ThreadPoolBidirectionalBFSPathFinder.DEFAULT_NUMBER_OF_THREADS;
-        int trials              = ThreadPoolBidirectionalBFSPathFinder.DEFAULT_NUMBER_OF_MASTER_TRIALS;
-        int masterSleepDuration = ThreadPoolBidirectionalBFSPathFinder.DEFAULT_MASTER_THREAD_SLEEP_DURATION_MILLIS;
-        int slaveSleepDuration  = ThreadPoolBidirectionalBFSPathFinder.DEFAULT_SLAVE_THREAD_SLEEP_DURATION_MILLIS;
-        int expansionTimeout    = ThreadPoolBidirectionalBFSPathFinder.DEFAULT_EXPANSION_JOIN_DURATION_MILLIS;
-        int lockWaitDuration    = ThreadPoolBidirectionalBFSPathFinder.DEFAULT_LOCK_WAIT_MILLIS;
-        boolean printHelp       = false;
-        boolean printStatistics = false;
+        String source                 = null;
+        String target                 = null;
+        String outFileName            = null;
+        int forwardThreads            = DEFAULT_NUMBER_OF_THREADS;
+        int backwardThreads           = DEFAULT_NUMBER_OF_THREADS;
+        int trials                    = DEFAULT_NUMBER_OF_MASTER_TRIALS;
+        long masterSleepDurationNanos = DEFAULT_MASTER_THREAD_SLEEP_DURATION_NANOS;
+        long slaveSleepDurationNanos  = DEFAULT_SLAVE_THREAD_SLEEP_DURATION_NANOS;
+        int  expansionTimeoutMillis   = DEFAULT_EXPANSION_JOIN_DURATION_MILLIS;
+        boolean printHelp             = false;
+        boolean printStatistics       = false;
     }
     
     public static void main(String[] args) {
@@ -133,11 +136,24 @@ public final class WikiGameKiller {
             source = URLDecoder.decode(source, Charset.forName("UTF-8"));
             target = URLDecoder.decode(target, Charset.forName("UTF-8"));
             
-            ForwardLinkExpander forwardLinkExpander = 
-                    new ForwardLinkExpander(languageCodeSource);
+            source = source.replaceAll("[\\+ ]", "_");
+            target = target.replaceAll("[\\+ ]", "_");
             
-            BackwardLinkExpander backwardLinkExpander = 
-                    new BackwardLinkExpander(languageCodeTarget);
+            ForwardLinkExpander forwardLinkExpander;
+            BackwardLinkExpander backwardLinkExpander;
+            
+            try {
+                forwardLinkExpander = 
+                        new ForwardLinkExpander(languageCodeSource);
+
+                backwardLinkExpander = 
+                        new BackwardLinkExpander(languageCodeTarget);
+                
+            } catch (Exception ex) {
+                System.err.println("[ERROR] Could not create expanders.");
+                System.exit(-1);
+                return; // Silence the next row error.
+            }
             
             validateTerminalNodes(forwardLinkExpander,
                                   backwardLinkExpander, 
@@ -146,13 +162,26 @@ public final class WikiGameKiller {
             
             ThreadPoolBidirectionalBFSPathFinder<String> finder = 
                     ThreadPoolBidirectionalBFSPathFinderBuilder.<String>begin()
-                    .withJoinDurationMillis(commandLineArguments.expansionTimeout)
-                    .withLockWaitMillis(commandLineArguments.lockWaitDuration)
-                    .withMasterThreadSleepDurationMillis(commandLineArguments.masterSleepDuration)
-                    .withSlaveThreadSleepDurationMillis(commandLineArguments.slaveSleepDuration)
+                    .withExpansionDurationMillis(commandLineArguments.expansionTimeoutMillis)
+                    .withMasterThreadSleepDurationNanos(commandLineArguments.masterSleepDurationNanos)
+                    .withExpansionDurationMillis(commandLineArguments.expansionTimeoutMillis)
+                    .withSlaveThreadSleepDurationNanos(commandLineArguments.slaveSleepDurationNanos)
                     .withNumberOfMasterTrials(commandLineArguments.trials)
-                    .withNumberOfRequestedThreads(commandLineArguments.threads)
+                    .withNumberOfForwardThreads(commandLineArguments.forwardThreads)
+                    .withNumberOfBackwardThreads(commandLineArguments.backwardThreads)
                     .end();
+            
+            MyForwardDirectionProgressListener forwardProgressListener = 
+                    new MyForwardDirectionProgressListener();
+            
+            MyBackwardDirectionProgressListener backwardProgressListener = 
+                    new MyBackwardDirectionProgressListener();
+            
+            forwardProgressListener
+                .setOppositeListener(backwardProgressListener);
+            
+            backwardProgressListener
+                .setOppositeListener(forwardProgressListener);
             
             List<String> path;
             
@@ -163,6 +192,11 @@ public final class WikiGameKiller {
                         .withTargetNode(target)
                         .withForwardNodeExpander(forwardLinkExpander)
                         .withBackwardNodeExpander(backwardLinkExpander)
+                        .withSharedSearchProgressListener(null)
+                        .withForwardSearchProgressListener(
+                                forwardProgressListener)
+                        .withBackwardSearchProgressListener(
+                                backwardProgressListener)
                         .search();
             } catch (final Exception ex) {
                 System.err.printf("ERROR: %s.", ex.getMessage());
@@ -172,17 +206,30 @@ public final class WikiGameKiller {
             
             if (commandLineArguments.printStatistics) {
                 OUT.printf(
-                        "[STATISTICS] Duration: %d milliseconds, " + 
-                        "expanded nodes: %d nodes.\n",
-                        finder.getDurationMillis(),
-                        finder.getNumberOfExpandedNodes());
+                        """
+                        [STATISTICS] Duration: %d milliseconds.
+                        [STATISTICS] Forward expanded nodes: %d nodes. 
+                        [STATISTICS] Backward expanded nodes: %d nodes. 
+                        [STATISTICS] Forward expansion mean: %.0f.
+                        [STATISTICS] Backward expansion mean: %.0f.
+                        """,
+                        finder.getDuration(),
+                        forwardProgressListener.getNumberOfExpansions(),
+                        backwardProgressListener.getNumberOfExpansions(),
+                        forwardProgressListener.getMeanExpansionDuration(),
+                        backwardProgressListener.getMeanExpansionDuration());
             }
             
             final List<LinkPathNode> linkPathNodeList = 
                     new ArrayList<>(path.size());
             
+            System.out.println("[STATISTICS] Shortest path:");
+            
             for (int i = 0; i < path.size(); i++) {
                 String title = path.get(i);
+                
+                System.out.printf("%2d: [%s]%n", (i + 1), title);
+                
                 title = URLDecoder.decode(title, Charset.forName("UTF-8"));
                 title = title.replace("_", " ");
                 
@@ -451,9 +498,16 @@ public final class WikiGameKiller {
             commandLineArguments.printStatistics = true;
         }
         
-        if (map.containsKey("--threads")) {
-            int index = map.get("--threads");
-            commandLineArguments.threads = getArgumentIntValue(args, index + 1);
+        if (map.containsKey("--forward-threads")) {
+            int index = map.get("--forward-threads");
+            commandLineArguments.forwardThreads = 
+                    getArgumentIntValue(args, index + 1);
+        }
+        
+        if (map.containsKey("--backward-threads")) {
+            int index = map.get("--backward-threads");
+            commandLineArguments.backwardThreads = 
+                    getArgumentIntValue(args, index + 1);
         }
         
         if (map.containsKey("--master-trials")) {
@@ -463,25 +517,19 @@ public final class WikiGameKiller {
         
         if (map.containsKey("--master-sleep-duration")) {
             int index = map.get("--master-sleep-duration");
-            commandLineArguments.masterSleepDuration = 
+            commandLineArguments.masterSleepDurationNanos = 
                     getArgumentIntValue(args, index + 1);
         }
         
         if (map.containsKey("--slave-sleep-duration")) {
             int index = map.get("--slave-sleep-duration");
-            commandLineArguments.slaveSleepDuration = 
+            commandLineArguments.slaveSleepDurationNanos = 
                     getArgumentIntValue(args, index + 1);
         }
         
         if (map.containsKey("--expansion-timeout")) {
             int index = map.get("--expansion-timeout");
-            commandLineArguments.expansionTimeout = 
-                    getArgumentIntValue(args, index + 1);
-        }
-        
-        if (map.containsKey("--lock-wait-timeout")) {
-            int index = map.get("--lock-wait-timeout");
-            commandLineArguments.lockWaitDuration = 
+            commandLineArguments.expansionTimeoutMillis = 
                     getArgumentIntValue(args, index + 1);
         }
         
@@ -497,34 +545,34 @@ public final class WikiGameKiller {
         usage: %s
             --source SOURCE_ARTICLE_URL
             --target TARGET_ARTICLE_URL
-           [--threads NUMBER_OF_THREADS]
+           [--forward-threads NUMBER_OF_FORWARD_THREADS]
+           [--backward-threads NUMBER_OF_BACKWARD_THREADS]
            [--master-trials TRIALS]
-           [--master-sleep-duration MASTER_SLEEP_MILLIS]
-           [--slave-sleep-duration SLAVE_SLEEP_MILLIS]
+           [--master-sleep-duration MASTER_SLEEP_NANOS]
+           [--slave-sleep-duration SLAVE_SLEEP_NANOS]
            [--expansion-timeout EXPANSION_TIMEOUT_MILLIS]
-           [--lock-wait-timeout LOCK_WAIT_MILLIS]
            [--help]
            [--stats]
-           [--out OUTPUT_HTML_FILE_NAME]
+           [--out [OUTPUT_HTML_FILE_NAME]]
         
             where:
-                NUMBER_OF_THREADS        - the total number of threads.        Default is %d.
-                TRIALS                   - the number of master thread trials. Default is %d.
-                MASTER_SLEEP_MILLIS      - the number of milliseconds.         Default is %d.
-                SLAVE_SLEEP_MILLIS       - the number of milliseconds.         Default is %d.
-                EXPANSION_TIMEOUT_MILLIS - the number of milliseconds.         Default is %d.
-                LOCK_WAIT_MILLIS         - the number of milliseconds.         Default is %d.
-        
+                NUMBER_OF_FORWARD_THREADS  - the total number of forward threads.  Default is %d.
+                NUMBER_OF_BACKWARD_THREADS - the total number of backward threads. Default is %d.
+                TRIALS                     - the number of master thread trials.   Default is %d.
+                MASTER_SLEEP_NANOS         - the number of nanoseconds.            Default is %d.
+                SLAVE_SLEEP_NANOS          - the number of nanoseconds.            Default is %d.
+                EXPANSION_TIMEOUT_MILLIS   - the number of milliseconds.           Default is %d.
+                OUTPUT_HTML_FILE_NAME      - the name of the output HTML file.     Default is \"path.html\".
                 --help  - Print this help message.
                 --stats - Print the search statistics after the search.
         """,
         getPath(),
         ThreadPoolBidirectionalBFSPathFinder.DEFAULT_NUMBER_OF_THREADS,
+        ThreadPoolBidirectionalBFSPathFinder.DEFAULT_NUMBER_OF_THREADS,
         ThreadPoolBidirectionalBFSPathFinder.DEFAULT_NUMBER_OF_MASTER_TRIALS,
-        ThreadPoolBidirectionalBFSPathFinder.DEFAULT_MASTER_THREAD_SLEEP_DURATION_MILLIS,
-        ThreadPoolBidirectionalBFSPathFinder.DEFAULT_SLAVE_THREAD_SLEEP_DURATION_MILLIS,
-        ThreadPoolBidirectionalBFSPathFinder.DEFAULT_EXPANSION_JOIN_DURATION_MILLIS,
-        ThreadPoolBidirectionalBFSPathFinder.DEFAULT_LOCK_WAIT_MILLIS
+        ThreadPoolBidirectionalBFSPathFinder.DEFAULT_MASTER_THREAD_SLEEP_DURATION_NANOS,
+        ThreadPoolBidirectionalBFSPathFinder.DEFAULT_SLAVE_THREAD_SLEEP_DURATION_NANOS,
+        ThreadPoolBidirectionalBFSPathFinder.DEFAULT_EXPANSION_JOIN_DURATION_MILLIS
         );
     }
     
@@ -543,7 +591,8 @@ public final class WikiGameKiller {
         
         parametrizedFlags.add("--source");
         parametrizedFlags.add("--target");
-        parametrizedFlags.add("--threads");
+        parametrizedFlags.add("--forward-threads");
+        parametrizedFlags.add("--backward-threads");
         parametrizedFlags.add("--master-trials");
         parametrizedFlags.add("--master-sleep-duration");
         parametrizedFlags.add("--slave-sleep-duration");
@@ -641,7 +690,7 @@ public final class WikiGameKiller {
     }
     
     /**
-     * Strinps the protocol, host name and {@code wiki} path from each URL in
+     * Strips the protocol, host name and {@code wiki} path from each URL in
      * the {@code urlList}. For example, 
      * {@code https://en.wikipedia.org/en/Hiisi} becomes simply {@code Hiisi}.
      * 
@@ -721,8 +770,11 @@ public final class WikiGameKiller {
 
         private final ForwardWikipediaGraphNodeExpander expander;
         
-        public ForwardLinkExpander(final String languageCode) {
-            this.expander = new ForwardWikipediaGraphNodeExpander(languageCode);
+        public ForwardLinkExpander(final String languageCode) throws Exception {
+            this.expander =
+                    new ForwardWikipediaGraphNodeExpander(
+                            languageCode,
+                            new WikipediaArticleJsonDownloader(languageCode));
         }
         
         /**
@@ -762,9 +814,11 @@ public final class WikiGameKiller {
 
         private final BackwardWikipediaGraphNodeExpander expander;
         
-        public BackwardLinkExpander(final String languageCode) {
+        public BackwardLinkExpander(final String languageCode) throws Exception {
             this.expander = 
-                    new BackwardWikipediaGraphNodeExpander(languageCode);
+                    new BackwardWikipediaGraphNodeExpander(
+                            languageCode,
+                            new WikipediaArticleJsonDownloader(languageCode));
         }
         
         /**
