@@ -210,14 +210,14 @@ public final class WikiGameKiller {
                         [STATISTICS] Duration: %d milliseconds.
                         [STATISTICS] Forward expanded nodes: %d nodes. 
                         [STATISTICS] Backward expanded nodes: %d nodes. 
-                        [STATISTICS] Forward expansion mean: %.0f.
-                        [STATISTICS] Backward expansion mean: %.0f.
+                        [STATISTICS] Forward expansion mean: %d.
+                        [STATISTICS] Backward expansion mean: %d.
                         """,
                         finder.getDuration(),
                         forwardProgressListener.getNumberOfExpansions(),
                         backwardProgressListener.getNumberOfExpansions(),
-                        forwardProgressListener.getMeanExpansionDuration(),
-                        backwardProgressListener.getMeanExpansionDuration());
+                        (int) forwardProgressListener.getMeanExpansionDuration(),
+                        (int) backwardProgressListener.getMeanExpansionDuration());
             }
             
             final List<LinkPathNode> linkPathNodeList = 
