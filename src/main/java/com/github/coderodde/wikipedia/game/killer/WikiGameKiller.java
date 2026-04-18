@@ -52,7 +52,8 @@ public final class WikiGameKiller {
                     <div>
                         <h3>Shortest path:</h3>
                         <table>
-            %s            </table>
+                            &s
+                        </table>
                     </div>
                 <body>
             </html>
