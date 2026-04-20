@@ -97,7 +97,7 @@ public final class WikiGameKiller {
         int trials                    = DEFAULT_NUMBER_OF_MASTER_TRIALS;
         long masterSleepDurationNanos = DEFAULT_MASTER_THREAD_SLEEP_DURATION_NANOS;
         long slaveSleepDurationNanos  = DEFAULT_SLAVE_THREAD_SLEEP_DURATION_NANOS;
-        int  expansionTimeoutMillis   = DEFAULT_EXPANSION_JOIN_DURATION_MILLIS;
+        long expansionTimeoutNanos    = DEFAULT_EXPANSION_JOIN_DURATION_NANOS;
         boolean printHelp             = false;
         boolean printStatistics       = false;
     }
@@ -163,9 +163,8 @@ public final class WikiGameKiller {
             
             ThreadPoolBidirectionalBFSPathFinder<String> finder = 
                     ThreadPoolBidirectionalBFSPathFinderBuilder.<String>begin()
-                    .withExpansionDurationMillis(commandLineArguments.expansionTimeoutMillis)
+                    .withExpansionDurationNanos(commandLineArguments.expansionTimeoutNanos)
                     .withMasterThreadSleepDurationNanos(commandLineArguments.masterSleepDurationNanos)
-                    .withExpansionDurationMillis(commandLineArguments.expansionTimeoutMillis)
                     .withSlaveThreadSleepDurationNanos(commandLineArguments.slaveSleepDurationNanos)
                     .withNumberOfMasterTrials(commandLineArguments.trials)
                     .withNumberOfForwardThreads(commandLineArguments.forwardThreads)
@@ -206,6 +205,9 @@ public final class WikiGameKiller {
             }
             
             if (commandLineArguments.printStatistics) {
+//                OUT.printf("""
+//                           [STATISTICS] Duration: %d milliseconds.
+//                           """, finder.getDuration());
                 OUT.printf(
                         """
                         [STATISTICS] Duration: %d milliseconds.
@@ -217,8 +219,10 @@ public final class WikiGameKiller {
                         finder.getDuration(),
                         forwardProgressListener.getNumberOfExpansions(),
                         backwardProgressListener.getNumberOfExpansions(),
-                        (int) forwardProgressListener.getMeanExpansionDuration(),
-                        (int) backwardProgressListener.getMeanExpansionDuration());
+                        (int) forwardProgressListener
+                                .getMeanExpansionDuration(),
+                        (int) backwardProgressListener
+                                .getMeanExpansionDuration());
             }
             
             final List<LinkPathNode> linkPathNodeList = 
@@ -339,6 +343,33 @@ public final class WikiGameKiller {
             throw new RuntimeException(
                     String.format(
                             "\"%s\" is not an integer.",
+                            args[index + 1]));
+        }
+    }
+    
+    /**
+     * Attempts to read a {@code long} value of the {@code index}th argument.
+     * 
+     * @param args  the argument array.
+     * @param index the argument array index.
+     * 
+     * @return the {@code long} value of the {@code index}th argument.
+     * 
+     * @throws CommandLineException if either the index is outside of the 
+     *                              argument array, or the {@code index}th
+     *                              argument is not a {@code long} value.
+     */
+    private static long getArgumentLongValue(final String[] args,
+                                             final int index) {
+        
+        checkValueFitsInCommandLine(args, index);
+        
+        try {
+            return Long.parseLong(args[index]);
+        } catch (final NumberFormatException ex) {
+            throw new RuntimeException(
+                    String.format(
+                            "\"%s\" is not a long.",
                             args[index + 1]));
         }
     }
@@ -519,19 +550,19 @@ public final class WikiGameKiller {
         if (map.containsKey("--master-sleep-duration")) {
             int index = map.get("--master-sleep-duration");
             commandLineArguments.masterSleepDurationNanos = 
-                    getArgumentIntValue(args, index + 1);
+                    getArgumentLongValue(args, index + 1);
         }
         
         if (map.containsKey("--slave-sleep-duration")) {
             int index = map.get("--slave-sleep-duration");
             commandLineArguments.slaveSleepDurationNanos = 
-                    getArgumentIntValue(args, index + 1);
+                    getArgumentLongValue(args, index + 1);
         }
         
         if (map.containsKey("--expansion-timeout")) {
             int index = map.get("--expansion-timeout");
-            commandLineArguments.expansionTimeoutMillis = 
-                    getArgumentIntValue(args, index + 1);
+            commandLineArguments.expansionTimeoutNanos = 
+                    getArgumentLongValue(args, index + 1);
         }
         
         return commandLineArguments;
